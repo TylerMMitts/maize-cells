@@ -1,4 +1,3 @@
-# train_exclusion.py
 from ultralytics import YOLO
 import torch
 
@@ -10,7 +9,7 @@ def train_exclusion(
     image_size=640,
     project="runs/exclusion_model",
     run_name="inner_part_detector"
-):
+): 
     device = 0 if torch.cuda.is_available() else 'cpu'
     
     model = YOLO(model_size)

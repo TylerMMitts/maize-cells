@@ -2,8 +2,8 @@ train: ../train/images
 val: ../train/images
 test: ../test/images
 
-nc: 1
-names: ['inner-part']
+nc: 2
+names: ['inner-part', 'outer-part']
 
 roboflow:
   workspace: tylers-workspace-ybllu

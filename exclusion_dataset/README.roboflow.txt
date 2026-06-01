@@ -2,7 +2,7 @@
 maize cells - vdataset tylers-workspace-ybllu
 ==============================
 
-This dataset was exported via roboflow.com on May 23, 2026 at 9:14 PM GMT
+This dataset was exported via roboflow.com on May 27, 2026 at 9:03 PM GMT
 
 Roboflow is an end-to-end computer vision platform that helps you
 * collaborate with your team on computer vision projects
@@ -17,7 +17,7 @@ visit https://github.com/roboflow/notebooks
 
 To find over 100k other datasets and pre-trained models, visit https://universe.roboflow.com
 
-The dataset includes 7 images.
+The dataset includes 33 images.
 Maize-cells are annotated in YOLO v5 PyTorch format.
 
 No pre-processing or augmentation was applied.

@@ -3,7 +3,7 @@ import numpy as np
 import pandas as pd
 import os
 from ultralytics import YOLO
-from test_robust import extract_cell_data, filter_cells_by_inner_part, get_inner_part_mask
+from test_robust import extract_cell_data, filter_cells_by_inner_part, get_inner_part_mask, filter_overlapping_cells
 from visualize_cell_centers import get_plant_center_from_filename, draw_red_dots_on_image
 
 def extract_cell_measurements(
@@ -17,9 +17,15 @@ def extract_cell_measurements(
     show_result=False,
     refine=True,
     color_tolerance=15,
+    use_darkest_seed=False,
     filter_by_inner_part=True,
-    morph_open_kernel=99,
-    morph_close_kernel=155
+    inner_open_kernel=99,
+    inner_close_kernel=155,
+    outer_open_kernel=99,
+    outer_close_kernel=155,
+    keep_largest_component=True,
+    exclusion_overlap_threshold=0.0,
+    overlap_threshold=15.0
 ):
     if not os.path.exists(weights_path):
         print(f"Weights not found: {weights_path}")
@@ -42,9 +48,10 @@ def extract_cell_measurements(
         print(f"Could not determine plant center from {filename}")
         return None
     
-    cell_masks, cell_centers = extract_cell_data(results, img, class_id=0, 
+    cell_masks, cell_centers, cell_confidences = extract_cell_data(results, img, class_id=0, 
                                                   refine=refine, 
-                                                  color_tolerance=color_tolerance)
+                                                  color_tolerance=color_tolerance,
+                                                  use_darkest_seed=use_darkest_seed)
     
     if filter_by_inner_part and os.path.exists(exclusion_weights):
         exclusion_model = YOLO(exclusion_weights)
@@ -52,18 +59,33 @@ def extract_cell_measurements(
         
         inner_mask = get_inner_part_mask(
             exclusion_results, img,
-            morph_open_kernel=morph_open_kernel,
-            morph_close_kernel=morph_close_kernel,
-            morph_open_iterations=1,
-            morph_close_iterations=1,
-            keep_largest_component=True
+            inner_open_kernel=inner_open_kernel,
+            inner_close_kernel=inner_close_kernel,
+            inner_open_iterations=1,
+            inner_close_iterations=1,
+            outer_open_kernel=outer_open_kernel,
+            outer_close_kernel=outer_close_kernel,
+            outer_open_iterations=1,
+            outer_close_iterations=1,
+            keep_largest_component=keep_largest_component
         )
         
         if np.sum(inner_mask) > 0:
             cells_before = len(cell_masks)
-            cell_masks, cell_centers = filter_cells_by_inner_part(cell_masks, cell_centers, inner_mask)
+            cell_masks, cell_centers, cell_confidences = filter_cells_by_inner_part(
+                cell_masks, cell_centers, cell_confidences, inner_mask, exclusion_overlap_threshold
+            )
             cells_removed = cells_before - len(cell_centers)
-            print(f"Cells removed by inner-part filter: {cells_removed}")
+            print(f"Cells removed by exclusion filter: {cells_removed}")
+    
+    # Apply overlap filtering
+    cells_before_overlap = len(cell_masks)
+    cell_masks, cell_centers, cell_confidences = filter_overlapping_cells(
+        cell_masks, cell_centers, cell_confidences, overlap_threshold=overlap_threshold
+    )
+    cells_removed_overlap = cells_before_overlap - len(cell_masks)
+    if cells_removed_overlap > 0:
+        print(f"Cells removed by overlap filter: {cells_removed_overlap}")
     
     measurements = []
     for i, (center, mask) in enumerate(zip(cell_centers, cell_masks)):
@@ -81,6 +103,8 @@ def extract_cell_measurements(
         
         measurements.append({
             'cell_id': i + 1,
+            'x_pixels': round(center[0], 2),
+            'y_pixels': round(center[1], 2),
             'radius_pixels': round(radius, 2),
             'angle_degrees': round(angle, 2),
             'area_pixels': round(area_pixels, 2)
@@ -119,9 +143,15 @@ def batch_extract_measurements(
     output_dir="measurements",
     refine=True,
     color_tolerance=15,
+    use_darkest_seed=False,
     filter_by_inner_part=True,
-    morph_open_kernel=99,
-    morph_close_kernel=155
+    inner_open_kernel=99,
+    inner_close_kernel=155,
+    outer_open_kernel=99,
+    outer_close_kernel=155,
+    keep_largest_component=True,
+    exclusion_overlap_threshold=0.0,
+    overlap_threshold=15.0
 ):
     if not os.path.exists(weights_path):
         print(f"Weights not found: {weights_path}")
@@ -167,9 +197,10 @@ def batch_extract_measurements(
             print(f"Could not determine plant center from {img_file}")
             continue
         
-        cell_masks, cell_centers = extract_cell_data(results, img, class_id=0, 
+        cell_masks, cell_centers, cell_confidences = extract_cell_data(results, img, class_id=0, 
                                                       refine=refine, 
-                                                      color_tolerance=color_tolerance)
+                                                      color_tolerance=color_tolerance,
+                                                      use_darkest_seed=use_darkest_seed)
         
         cells_removed = 0
         if filter_by_inner_part and exclusion_model is not None:
@@ -177,17 +208,31 @@ def batch_extract_measurements(
             
             inner_mask = get_inner_part_mask(
                 exclusion_results, img,
-                morph_open_kernel=morph_open_kernel,
-                morph_close_kernel=morph_close_kernel,
-                morph_open_iterations=1,
-                morph_close_iterations=1,
-                keep_largest_component=True
+                inner_open_kernel=inner_open_kernel,
+                inner_close_kernel=inner_close_kernel,
+                inner_open_iterations=1,
+                inner_close_iterations=1,
+                outer_open_kernel=outer_open_kernel,
+                outer_close_kernel=outer_close_kernel,
+                outer_open_iterations=1,
+                outer_close_iterations=1,
+                keep_largest_component=keep_largest_component
             )
             
             if np.sum(inner_mask) > 0:
                 cells_before = len(cell_masks)
-                cell_masks, cell_centers = filter_cells_by_inner_part(cell_masks, cell_centers, inner_mask)
+                cell_masks, cell_centers, cell_confidences = filter_cells_by_inner_part(
+                    cell_masks, cell_centers, cell_confidences, inner_mask, exclusion_overlap_threshold
+                )
                 cells_removed = cells_before - len(cell_centers)
+        
+        # Apply overlap filtering
+        cells_before_overlap = len(cell_masks)
+        cell_masks, cell_centers, cell_confidences = filter_overlapping_cells(
+            cell_masks, cell_centers, cell_confidences, overlap_threshold=overlap_threshold
+        )
+        cells_removed_overlap = cells_before_overlap - len(cell_masks)
+        
         measurements = []
         for i, (center, mask) in enumerate(zip(cell_centers, cell_masks)):
             contours, _ = cv2.findContours(mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
@@ -204,6 +249,8 @@ def batch_extract_measurements(
             
             measurements.append({
                 'cell_id': i + 1,
+                'x_pixels': round(center[0], 2),
+                'y_pixels': round(center[1], 2),
                 'radius_pixels': round(radius, 2),
                 'angle_degrees': round(angle, 2),
                 'area_pixels': round(area_pixels, 2)
@@ -212,8 +259,9 @@ def batch_extract_measurements(
         df = pd.DataFrame(measurements)
         df.to_csv(csv_path, index=False)
         
-        removed_str = f", removed: {cells_removed}" if cells_removed > 0 else ""
-        print(f"{img_file}: {len(measurements)} cells saved to {csv_path} (Quadrant: {quadrant}){removed_str}")
+        removed_str = f", excluded: {cells_removed}" if cells_removed > 0 else ""
+        overlap_str = f", overlap: {cells_removed_overlap}" if cells_removed_overlap > 0 else ""
+        print(f"{img_file}: {len(measurements)} cells saved to {csv_path} (Quadrant: {quadrant}){removed_str}{overlap_str}")
         
         img_output = img.copy()
         for center in cell_centers:
@@ -225,7 +273,7 @@ def batch_extract_measurements(
                    cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 0, 255), 2)
         
         cv2.imwrite(image_output_path, img_output)
-        print(f"   Visualization saved to {image_output_path}")
+        print(f"Visualization saved to {image_output_path}")
 
 def visualize_measurements(
     weights_path="runs/robust_segmentation/robust_cell_detector/weights/best.pt",
@@ -239,8 +287,11 @@ def visualize_measurements(
     refine=True,
     color_tolerance=15,
     filter_by_inner_part=True,
-    morph_open_kernel=99,
-    morph_close_kernel=155
+    inner_open_kernel=99,
+    inner_close_kernel=155,
+    outer_open_kernel=99,
+    outer_close_kernel=155,
+    exclusion_overlap_threshold=0.0
 ):
     if not os.path.exists(weights_path):
         print(f"Weights not found: {weights_path}")
@@ -264,11 +315,7 @@ def visualize_measurements(
         if center_x is not None:
             plant_center = (center_x, center_y)
     
-    cell_masks, cell_centers = extract_cell_data(results, img, class_id=0, 
-                                                  refine=refine, 
-                                                  color_tolerance=color_tolerance)
-    
-    cell_masks, cell_centers = extract_cell_data(results, img, class_id=0, 
+    cell_masks, cell_centers, cell_confidences = extract_cell_data(results, img, class_id=0, 
                                                   refine=refine, 
                                                   color_tolerance=color_tolerance)
     
@@ -278,15 +325,21 @@ def visualize_measurements(
         
         inner_mask = get_inner_part_mask(
             exclusion_results, img,
-            morph_open_kernel=morph_open_kernel,
-            morph_close_kernel=morph_close_kernel,
-            morph_open_iterations=1,
-            morph_close_iterations=1,
+            inner_open_kernel=inner_open_kernel,
+            inner_close_kernel=inner_close_kernel,
+            inner_open_iterations=1,
+            inner_close_iterations=1,
+            outer_open_kernel=outer_open_kernel,
+            outer_close_kernel=outer_close_kernel,
+            outer_open_iterations=1,
+            outer_close_iterations=1,
             keep_largest_component=True
         )
         
         if np.sum(inner_mask) > 0:
-            cell_masks, cell_centers = filter_cells_by_inner_part(cell_masks, cell_centers, inner_mask)
+            cell_masks, cell_centers, cell_confidences = filter_cells_by_inner_part(
+                cell_masks, cell_centers, cell_confidences, inner_mask, exclusion_overlap_threshold
+            )
     
     draw_red_dots_on_image(img, cell_centers, output_path, plant_center, quadrant)
     print(f"Visualization saved to {output_path}")

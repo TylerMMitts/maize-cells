@@ -56,8 +56,11 @@ def visualize_cell_centers(
     refine=True,
     color_tolerance=15,
     filter_by_inner_part=True,
-    morph_open_kernel=99,
-    morph_close_kernel=155
+    inner_open_kernel=99,
+    inner_close_kernel=155,
+    outer_open_kernel=99,
+    outer_close_kernel=155,
+    exclusion_overlap_threshold=0.0
 ):
     if not os.path.exists(weights_path):
         print(f"Weights not found: {weights_path}")
@@ -81,7 +84,7 @@ def visualize_cell_centers(
         if center_x is not None:
             plant_center = (center_x, center_y)
     
-    cell_masks, cell_centers = extract_cell_data(results, img, class_id=0, refine=refine, color_tolerance=color_tolerance)
+    cell_masks, cell_centers, cell_confidences = extract_cell_data(results, img, class_id=0, refine=refine, color_tolerance=color_tolerance)
     
     if filter_by_inner_part and os.path.exists(exclusion_weights):
         exclusion_model = YOLO(exclusion_weights)
@@ -89,18 +92,24 @@ def visualize_cell_centers(
         
         inner_mask = get_inner_part_mask(
             exclusion_results, img,
-            morph_open_kernel=morph_open_kernel,
-            morph_close_kernel=morph_close_kernel,
-            morph_open_iterations=1,
-            morph_close_iterations=1,
+            inner_open_kernel=inner_open_kernel,
+            inner_close_kernel=inner_close_kernel,
+            inner_open_iterations=1,
+            inner_close_iterations=1,
+            outer_open_kernel=outer_open_kernel,
+            outer_close_kernel=outer_close_kernel,
+            outer_open_iterations=1,
+            outer_close_iterations=1,
             keep_largest_component=True
         )
         
         if np.sum(inner_mask) > 0:
             cells_before = len(cell_masks)
-            cell_masks, cell_centers = filter_cells_by_inner_part(cell_masks, cell_centers, inner_mask)
+            cell_masks, cell_centers, cell_confidences = filter_cells_by_inner_part(
+                cell_masks, cell_centers, cell_confidences, inner_mask, exclusion_overlap_threshold
+            )
             cells_removed = cells_before - len(cell_centers)
-            print(f"Cells removed by inner-part filter: {cells_removed}")
+            print(f"Cells removed by exclusion filter: {cells_removed}")
     
     draw_red_dots_on_image(img, cell_centers, output_path, plant_center, quadrant)
     print(f"Visualization saved to {output_path}")
@@ -123,8 +132,11 @@ def batch_visualize_cell_centers(
     refine=True,
     color_tolerance=15,
     filter_by_inner_part=True,
-    morph_open_kernel=99,
-    morph_close_kernel=155
+    inner_open_kernel=99,
+    inner_close_kernel=155,
+    outer_open_kernel=99,
+    outer_close_kernel=155,
+    exclusion_overlap_threshold=0.0
 ):
     if not os.path.exists(weights_path):
         print(f"Weights not found: {weights_path}")
@@ -172,7 +184,7 @@ def batch_visualize_cell_centers(
             if center_x is not None:
                 plant_center = (center_x, center_y)
         
-        cell_masks, cell_centers = extract_cell_data(results, img, class_id=0, refine=refine, color_tolerance=color_tolerance)
+        cell_masks, cell_centers, cell_confidences = extract_cell_data(results, img, class_id=0, refine=refine, color_tolerance=color_tolerance)
         
         cells_removed = 0
         if filter_by_inner_part and exclusion_model is not None:
@@ -180,16 +192,22 @@ def batch_visualize_cell_centers(
             
             inner_mask = get_inner_part_mask(
                 exclusion_results, img,
-                morph_open_kernel=morph_open_kernel,
-                morph_close_kernel=morph_close_kernel,
-                morph_open_iterations=1,
-                morph_close_iterations=1,
+                inner_open_kernel=inner_open_kernel,
+                inner_close_kernel=inner_close_kernel,
+                inner_open_iterations=1,
+                inner_close_iterations=1,
+                outer_open_kernel=outer_open_kernel,
+                outer_close_kernel=outer_close_kernel,
+                outer_open_iterations=1,
+                outer_close_iterations=1,
                 keep_largest_component=True
             )
             
             if np.sum(inner_mask) > 0:
                 cells_before = len(cell_masks)
-                cell_masks, cell_centers = filter_cells_by_inner_part(cell_masks, cell_centers, inner_mask)
+                cell_masks, cell_centers, cell_confidences = filter_cells_by_inner_part(
+                    cell_masks, cell_centers, cell_confidences, inner_mask, exclusion_overlap_threshold
+                )
                 cells_removed = cells_before - len(cell_centers)
         
         draw_red_dots_on_image(img, cell_centers, output_path, plant_center, quadrant)
