@@ -34,7 +34,7 @@ def wasserstein_distance(diagram_list, dimension=1, save_path=None, show=False):
     
     if save_path:
         plt.savefig(save_path, dpi=150, bbox_inches='tight')
-        print(f"   Wasserstein distance heatmap saved to {save_path}")
+        print(f"Wasserstein distance heatmap saved to {save_path}")
     
     if show:
         plt.show()

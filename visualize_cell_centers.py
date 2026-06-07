@@ -215,7 +215,7 @@ def batch_visualize_cell_centers(
         total_cells += len(cell_centers)
         quadrant_str = f" (Quadrant: {quadrant})" if quadrant else ""
         removed_str = f", removed: {cells_removed}" if cells_removed > 0 else ""
-        print(f"   {img_file}: {len(cell_centers)} cells{quadrant_str}{removed_str}")
+        print(f"{img_file}: {len(cell_centers)} cells{quadrant_str}{removed_str}")
     
     print(f"Results saved to {output_dir}")
 

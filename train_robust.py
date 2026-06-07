@@ -9,9 +9,10 @@ def train_robust_model(
     batch_size=4,
     image_size=640,
     project="runs/robust_segmentation",
-    run_name="robust_cell_detector"
+    run_name="robust_cell_detector",
+    device='cpu'
 ):
-    device = 0 if torch.cuda.is_available() else 'cpu'
+    # Use the device parameter passed in (respects config setting)
     
     model = YOLO(model_size)
     

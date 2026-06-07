@@ -8,9 +8,10 @@ def train_root_model(
     batch_size=4,
     image_size=640,
     project="runs/root_detection",
-    run_name="root_detector"
+    run_name="root_detector",
+    device='cpu'
 ):
-    device = 0 if torch.cuda.is_available() else 'cpu'
+    # Use the device parameter passed in (respects config setting)
     
     model = YOLO(model_size)
     

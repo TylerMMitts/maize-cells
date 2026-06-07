@@ -3,6 +3,24 @@ import cv2
 import os
 import numpy as np
 import pandas as pd
+import gc
+import torch
+
+# Try to enable OpenCL for GPU acceleration
+try:
+    cv2.ocl.setUseOpenCL(True)
+    if cv2.ocl.useOpenCL():
+        print("OpenCL enabled for GPU acceleration (OpenCV)")
+    else:
+        print("OpenCL not available, using CPU")
+except:
+    print("OpenCL not available, using CPU")
+
+# Check PyTorch GPU availability
+if torch.cuda.is_available():
+    print(f"PyTorch CUDA available: {torch.cuda.get_device_name(0)} ({torch.cuda.get_device_properties(0).total_memory / 1024**3:.1f} GB)")
+else:
+    print("PyTorch using CPU")
 
 # Region growing to refine masks based on color similarity
 def refine_with_region_growing(image, mask, seed_point=None, tolerance=15):
@@ -48,7 +66,9 @@ def refine_with_region_growing(image, mask, seed_point=None, tolerance=15):
     
     return refined
 
-def extract_cell_data(results, img, class_id=None, refine=True, color_tolerance=15, use_darkest_seed=False):
+def extract_cell_data(results, img, class_id=None, refine=True, color_tolerance=15, use_darkest_seed=False,
+                     morph_post_process=True, morph_close_kernel=21, morph_open_kernel=21, sam_refiner=None):
+    
     cell_masks = []
     cell_centers = []
     cell_confidences = []
@@ -65,21 +85,75 @@ def extract_cell_data(results, img, class_id=None, refine=True, color_tolerance=
             mask_resized = cv2.resize(mask, (img.shape[1], img.shape[0]))
             binary_mask = (mask_resized > 0.5).astype(np.uint8) * 255
             
-            if refine:
-                seed_point = None
-                if use_darkest_seed:
-                    gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
-                    masked_gray = np.where(binary_mask > 0, gray, 255)
-                    min_loc = np.unravel_index(np.argmin(masked_gray), masked_gray.shape)
-                    seed_point = (min_loc[1], min_loc[0])
+            # Get bounding box to work on smaller region (saves memory)
+            rows = np.any(binary_mask > 0, axis=1)
+            cols = np.any(binary_mask > 0, axis=0)
+            if not np.any(rows) or not np.any(cols):
+                continue
                 
-                refined_mask = refine_with_region_growing(img, binary_mask, 
-                                                          seed_point=seed_point,
-                                                          tolerance=color_tolerance)
-            else:
-                refined_mask = binary_mask
+            y_min, y_max = np.where(rows)[0][[0, -1]]
+            x_min, x_max = np.where(cols)[0][[0, -1]]
             
-            contours, _ = cv2.findContours(refined_mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+            # Add padding for morphological operations
+            pad = max(morph_close_kernel, morph_open_kernel, 10) if morph_post_process else 10
+            y_min = max(0, y_min - pad)
+            y_max = min(img.shape[0], y_max + pad)
+            x_min = max(0, x_min - pad)
+            x_max = min(img.shape[1], x_max + pad)
+            
+            # Extract region of interest (much smaller than full image)
+            roi_mask = binary_mask[y_min:y_max, x_min:x_max]
+            roi_img = img[y_min:y_max, x_min:x_max]
+            
+            if refine:
+                if sam_refiner is not None:
+                    refined_roi = sam_refiner.refine_with_sam(roi_img, roi_mask, fallback_to_original=True)
+                else:
+                    seed_point = None
+                    if use_darkest_seed:
+                        gray = cv2.cvtColor(roi_img, cv2.COLOR_BGR2GRAY)
+                        masked_gray = np.where(roi_mask > 0, gray, 255)
+                        min_loc = np.unravel_index(np.argmin(masked_gray), masked_gray.shape)
+                        seed_point = (min_loc[1], min_loc[0])
+                    
+                    refined_roi = refine_with_region_growing(roi_img, roi_mask, 
+                                                              seed_point=seed_point,
+                                                              tolerance=color_tolerance)
+            else:
+                refined_roi = roi_mask
+            
+            # Apply morphological post-processing on ROI (much faster and less memory)
+            if morph_post_process:
+                try:
+                    # Closing to fill holes
+                    if morph_close_kernel > 0:
+                        close_kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, 
+                                                                (morph_close_kernel, morph_close_kernel))
+                        refined_roi = cv2.morphologyEx(refined_roi, cv2.MORPH_CLOSE, close_kernel)
+                        del close_kernel
+                    
+                    # Opening to smooth boundaries and fix radius
+                    if morph_open_kernel > 0:
+                        open_kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, 
+                                                               (morph_open_kernel, morph_open_kernel))
+                        refined_roi = cv2.morphologyEx(refined_roi, cv2.MORPH_OPEN, open_kernel)
+                        del open_kernel
+                except cv2.error as e:
+                    print(f"Morphology failed on cell {i}, using without post-processing")
+            
+            # Reconstruct full-size mask
+            refined_mask = np.zeros((img.shape[0], img.shape[1]), dtype=np.uint8)
+            refined_mask[y_min:y_max, x_min:x_max] = refined_roi
+            
+            # Clean up ROI variables
+            del roi_mask, roi_img, refined_roi
+            
+            try:
+                contours, _ = cv2.findContours(refined_mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+            except cv2.error as e:
+                print(f"findContours failed on cell {i}: {e}")
+                del refined_mask, binary_mask, mask_resized
+                continue
             
             if contours:
                 contour = max(contours, key=cv2.contourArea)
@@ -94,7 +168,18 @@ def extract_cell_data(results, img, class_id=None, refine=True, color_tolerance=
                     if boxes is not None and hasattr(boxes, 'conf'):
                         cell_confidences.append(float(boxes.conf[i]))
                     else:
-                        cell_confidences.append(1.0)  # Default confidence if not available
+                        cell_confidences.append(1.0)
+                else:
+                    del refined_mask
+            else:
+                del refined_mask
+            
+            # Clean up per-cell variables to prevent memory accumulation
+            del binary_mask, mask_resized
+            
+            # Periodic garbage collection for large batches
+            if i > 0 and i % 100 == 0:
+                gc.collect()
     
     return cell_masks, cell_centers, cell_confidences
 
@@ -143,7 +228,7 @@ def get_inner_part_mask(results, img,
                 largest_inner = np.zeros_like(processed_inner)
                 largest_inner[labels == largest_label] = 255
                 processed_inner = largest_inner
-                print(f"         Inner-part: Found {num_labels - 1} components, keeping largest (area: {stats[largest_label, cv2.CC_STAT_AREA]} pixels)")
+                print(f"Inner-part: Found {num_labels - 1} components, keeping largest (area: {stats[largest_label, cv2.CC_STAT_AREA]} pixels)")
     
     # Process outer-part mask
     processed_outer = np.zeros((h, w), dtype=np.uint8)
@@ -164,7 +249,7 @@ def get_inner_part_mask(results, img,
                 largest_outer = np.zeros_like(processed_outer)
                 largest_outer[labels == largest_label] = 255
                 processed_outer = largest_outer
-                print(f"         Outer-part: Found {num_labels - 1} components, keeping largest (area: {stats[largest_label, cv2.CC_STAT_AREA]} pixels)")
+                print(f"Outer-part: Found {num_labels - 1} components, keeping largest (area: {stats[largest_label, cv2.CC_STAT_AREA]} pixels)")
     
     # Combine both processed masks
     combined_mask = cv2.bitwise_or(processed_inner, processed_outer)
@@ -335,7 +420,11 @@ def batch_test_robust_model(
     outer_close_iterations=1,
     keep_largest_component=True,
     exclusion_overlap_threshold=0.0,
-    overlap_threshold=15.0
+    overlap_threshold=15.0,
+    morph_post_process=False,
+    morph_close_kernel=3,
+    morph_open_kernel=3,
+    sam_refiner=None
 ):
     if not os.path.exists(cell_weights):
         print(f"Cell model not found: {cell_weights}")
@@ -348,6 +437,7 @@ def batch_test_robust_model(
     cell_model = YOLO(cell_weights)
     cell_model.overrides['max_det'] = max_det
     
+    # Force CPU for YOLO to avoid GPU memory issues with high max_det
     exclusion_model = None
     if filter_by_inner_part:
         if not os.path.exists(exclusion_weights):
@@ -365,19 +455,29 @@ def batch_test_robust_model(
         print(f"No images found in {image_folder}")
         return None
     
+    
     results_summary = {}
     
     for img_file in images:
         img_path = os.path.join(image_folder, img_file)
         
-        cell_results = cell_model(img_path, conf=confidence, max_det=max_det, iou=0.45)
+        # Clear GPU cache before each image to prevent memory fragmentation
+        if torch.cuda.is_available():
+            torch.cuda.empty_cache()
+        
+        # Use CPU device to avoid GPU memory errors
+        cell_results = cell_model(img_path, conf=confidence, max_det=max_det, iou=0.45, device='cpu')
         
         img = cv2.imread(img_path)
         filename = os.path.basename(img_path)
         
         cell_masks, cell_centers, cell_confidences = extract_cell_data(cell_results, img, class_id=0, 
                                                                         refine=refine,
-                                                                        color_tolerance=color_tolerance)
+                                                                        color_tolerance=color_tolerance,
+                                                                        morph_post_process=morph_post_process,
+                                                                        morph_close_kernel=morph_close_kernel,
+                                                                        morph_open_kernel=morph_open_kernel,
+                                                                        sam_refiner=sam_refiner)
         
         inner_mask = None
         inner_pixel_count = 0
@@ -385,7 +485,8 @@ def batch_test_robust_model(
         cells_removed_by_overlap = 0
         
         if filter_by_inner_part and exclusion_model is not None:
-            exclusion_results = exclusion_model(img_path, conf=exclusion_confidence, max_det=max_det)
+            # Use CPU device to avoid GPU memory errors
+            exclusion_results = exclusion_model(img_path, conf=exclusion_confidence, max_det=max_det, device='cpu')
             
             inner_mask = get_inner_part_mask(
                 exclusion_results, img,
@@ -451,6 +552,21 @@ def batch_test_robust_model(
             'total_cells_removed': cells_removed_by_exclusion + cells_removed_by_overlap,
             'inner_part_area': inner_pixel_count
         }
+        
+        # Free memory after each image to prevent accumulation
+        del img, img_output, cell_masks, cell_centers, cell_confidences, cell_results
+        if inner_mask is not None:
+            del inner_mask
+        if 'inner_viz' in locals():
+            del inner_viz
+        if 'exclusion_results' in locals():
+            del exclusion_results
+        
+        # Garbage collect every 5 images
+        if len(results_summary) % 5 == 0:
+            gc.collect()
+            if torch.cuda.is_available():
+                torch.cuda.empty_cache()
     
     summary_df = pd.DataFrame([
         {
@@ -467,6 +583,6 @@ def batch_test_robust_model(
     summary_path = os.path.join(output_dir, "detection_summary.csv")
     summary_df.to_csv(summary_path, index=False)
     
-    print(f"\nResults saved to {output_dir}")
+    print(f"Results saved to {output_dir}")
     
     return results_summary

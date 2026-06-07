@@ -8,9 +8,10 @@ def train_exclusion(
     batch_size=4,
     image_size=640,
     project="runs/exclusion_model",
-    run_name="inner_part_detector"
+    run_name="inner_part_detector",
+    device='cpu'
 ): 
-    device = 0 if torch.cuda.is_available() else 'cpu'
+    # Use the device parameter passed in (respects config setting)
     
     model = YOLO(model_size)
     

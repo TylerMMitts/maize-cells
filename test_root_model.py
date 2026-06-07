@@ -158,3 +158,6 @@ def batch_test_root_model(
         
         output_path = os.path.join(detections_dir, f"detected_{img_file}")
         cv2.imwrite(output_path, img)
+
+if __name__ == "__main__":
+    batch_test_root_model(image_folder="chosen", output_dir="chosen_results")
