@@ -1,0 +1,13 @@
+train: ../train/images
+val: ../train/images
+test: ../test/images
+
+nc: 1
+names: ['inner-part']
+
+roboflow:
+  workspace: tylers-workspace-ybllu
+  project: tylers-workspace-ybllu
+  version: dataset
+  license: Private
+  url: https://app.roboflow.com/tylers-workspace-ybllu/tylers-workspace-ybllu/dataset
