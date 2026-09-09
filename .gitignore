@@ -46,6 +46,7 @@ poster_images/
 # Must come after the *.txt rule above: in gitignore the last matching rule
 # wins, so a negation placed earlier has no effect at all.
 !requirements.txt
+!models.txt
 
 # Python
 __pycache__/
