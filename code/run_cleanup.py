@@ -1,73 +1,72 @@
-from pipeline import RootAnalysisPipeline
+# Entry point for reconciling master_summary.csv against the files on disk.
+#
+# Images whose measurement files have gone missing are dropped from the master
+# summary, and optionally the reverse: measurement files with no row in the
+# summary are deleted. Rewrites master_summary.csv in results/ and, when
+# cfg.rebuild_analysis is on, re-runs the downstream analyses over what is left.
+
 import sys
-import os
-from pathlib import Path
-from datetime import datetime
 
-# Folder locations
-OUTPUT_FOLDER = "../results"
+from code.config import MEASUREMENTS_FOLDER, RESULTS_FOLDER
+from code.pipeline import RootAnalysisPipeline
 
-MEASUREMENTS_FOLDER = "../results/measurements_all"  # Set to None to use config default, or specify path
 
-# Cleanup options
-# remove_orphaned: If True, delete measurement files not in master_summary
-REMOVE_ORPHANED_FILES = False  # Changed default to False
+def main():
+    # python -m code.run_cleanup
+    class cfg:
+        output_folder = RESULTS_FOLDER
+        measurements_folder = MEASUREMENTS_FOLDER
 
-BACKUP_BEFORE_CLEANUP = False  # Create backup before making changes
-REBUILD_ANALYSIS = True  # Re-run analysis after cleanup
+        # Deleting measurement files that the summary does not mention is the
+        # destructive half of this script, so it stays off unless asked for.
+        remove_orphaned_files = False
 
-# Set to True to preview what would be removed without actually making changes
-PREVIEW_ONLY = False  # Change to False when you're ready to actually run cleanup
+        backup_before_cleanup = False
+        rebuild_analysis = True
 
-# Initialize pipeline
-pipeline = RootAnalysisPipeline(
-    output_folder=OUTPUT_FOLDER,
-    verbose=True
-)
+        # Report what would change and stop, without touching anything.
+        preview_only = False
 
-# Determine measurements folder
-if MEASUREMENTS_FOLDER is None:
-    from code import config
-    measurements_folder = str(config.MEASUREMENTS_FOLDER)
-else:
-    measurements_folder = str(Path(MEASUREMENTS_FOLDER).resolve())
-
-print(f"Output folder: {OUTPUT_FOLDER}")
-print(f"Measurements folder: {measurements_folder}")
-print(f"Remove orphaned files: {REMOVE_ORPHANED_FILES}")
-print(f"Preview only: {PREVIEW_ONLY}")
-
-if PREVIEW_ONLY:
-    # Preview what would be cleaned up
-    print("\nRUNNING IN PREVIEW MODE - No changes will be made")
-    
-    pipeline.preview_cleanup(measurements_folder=measurements_folder)
-    
-else:
-    # Confirm before proceeding
-    print("\nWARNING: You are about to modify your dataset")
-    print("Images missing measurement files will be REMOVED from master_summary.")
-    
-    # Show preview first
-    pipeline.preview_cleanup(measurements_folder=measurements_folder)
-    
-    response = input("\n\nContinue with cleanup? (yes/no): ")
-    if response.lower() != 'yes':
-        print("Cleanup cancelled.")
-        sys.exit(0)
-    
-    # Run full cleanup and rebuild
-    results = pipeline.full_cleanup_and_rebuild(
-        measurements_folder=measurements_folder,
-        remove_orphaned=REMOVE_ORPHANED_FILES,
-        backup=BACKUP_BEFORE_CLEANUP,
-        run_analysis=REBUILD_ANALYSIS,
-        dry_run=False
+    pipeline = RootAnalysisPipeline(
+        output_folder=str(cfg.output_folder),
+        verbose=True,
     )
-    
-    print("CLEANUP COMPLETE")
+
+    print(f'Output folder: {cfg.output_folder}')
+    print(f'Measurements folder: {cfg.measurements_folder}')
+    print(f'Remove orphaned files: {cfg.remove_orphaned_files}')
+    print(f'Preview only: {cfg.preview_only}')
+
+    if cfg.preview_only:
+        print('\nRUNNING IN PREVIEW MODE - No changes will be made')
+        pipeline.preview_cleanup(measurements_folder=str(cfg.measurements_folder))
+        return
+
+    print('\nWARNING: You are about to modify your dataset')
+    print('Images missing measurement files will be REMOVED from master_summary.')
+
+    # The preview runs first every time, so the confirmation below is answered
+    # against the actual list of changes rather than in the dark.
+    pipeline.preview_cleanup(measurements_folder=str(cfg.measurements_folder))
+
+    response = input('\n\nContinue with cleanup? (yes/no): ')
+    if response.lower() != 'yes':
+        print('Cleanup cancelled.')
+        sys.exit(0)
+
+    results = pipeline.full_cleanup_and_rebuild(
+        measurements_folder=str(cfg.measurements_folder),
+        remove_orphaned=cfg.remove_orphaned_files,
+        backup=cfg.backup_before_cleanup,
+        run_analysis=cfg.rebuild_analysis,
+        dry_run=False,
+    )
+
+    print('CLEANUP COMPLETE')
     print(f"Images remaining: {results['images_remaining']}")
     print(f"Measurements folder: {results['measurements_folder']}")
-    
-    # Generate final summary
     print(pipeline.generate_summary())
+
+
+if __name__ == '__main__':
+    main()

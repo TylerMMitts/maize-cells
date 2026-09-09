@@ -1,9 +1,15 @@
+# Draws detected cell centres onto the original image.
+#
+# The quickest way to see whether segmentation has gone wrong on an image,
+# and the basis of the QC review thumbnails.
+
 import cv2
 import numpy as np
 import os
 import re
 from ultralytics import YOLO
 from code.yolo.test_robust import extract_cell_data, filter_cells_by_inner_part, get_inner_part_mask
+from code.config import DATA_FOLDER, EXCLUSION_WEIGHTS, ROBUST_CELL_WEIGHTS
 
 def get_plant_center_from_filename(filename, image_width=1080, image_height=1080):
     
@@ -45,8 +51,8 @@ def draw_red_dots_on_image(image, cell_centers, output_path, plant_center=None, 
     return img
 
 def visualize_cell_centers(
-    weights_path="models/runs/segment/runs/robust_segmentation/robust_cell_detector/weights/best.pt",
-    exclusion_weights="models/runs/segment/runs/exclusion_model/inner_part_detector/weights/best.pt",
+    weights_path=ROBUST_CELL_WEIGHTS,
+    exclusion_weights=EXCLUSION_WEIGHTS,
     image_path="test_image.jpg",
     confidence=0.99,
     exclusion_confidence=0.5,
@@ -121,9 +127,9 @@ def visualize_cell_centers(
         cv2.destroyAllWindows()
 
 def batch_visualize_cell_centers(
-    weights_path="models/runs/segment/runs/robust_segmentation/robust_cell_detector/weights/best.pt",
-    exclusion_weights="models/runs/segment/runs/exclusion_model/inner_part_detector/weights/best.pt",
-    image_folder="data/cropped_images",
+    weights_path=ROBUST_CELL_WEIGHTS,
+    exclusion_weights=EXCLUSION_WEIGHTS,
+    image_folder=DATA_FOLDER / 'cropped_images',
     confidence=0.99,
     exclusion_confidence=0.5,
     output_dir="cell_centers_output",

@@ -1,3 +1,8 @@
+# Geometry read off the image itself.
+#
+# Plant centre, stele area and root radius. These are the measurements that
+# hand-annotated species lack, which is why they drop out of some analyses.
+
 import cv2
 import numpy as np
 import json

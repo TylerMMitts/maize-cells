@@ -1,3 +1,9 @@
+# Builds feature_table.csv, one row per root.
+#
+# Fits the spline per quadrant, extracts the six shape features in both the
+# radius and cell-file bases, and averages the four quadrants up to a single
+# root record. Append-only: existing rows are left alone.
+
 import os
 import pandas as pd
 import numpy as np
@@ -37,6 +43,7 @@ FEATURES = [
     'peak_position',
     'rise_slope',
     'decay_slope',
+    'minima_position',
     'outer_rise_magnitude'
 ]
 
@@ -45,6 +52,7 @@ FEATURE_LABELS = {
     'peak_position': 'Peak Position',
     'rise_slope': 'Rise Slope',
     'decay_slope': 'Decay Slope',
+    'minima_position': 'Minima Position',
     'outer_rise_magnitude': 'Outer-Rise Magnitude'
 }
 
@@ -131,30 +139,28 @@ def fit_spline_and_extract_features(x, y, smoothing=SPLINE_SMOOTHING):
         else:
             rise_slope = 0
         
-        # Decay slope (from peak to end)
+        # Minima position - the post-peak local minimum where the outer-rise begins
         decay_x = x_smooth[peak_idx:]
         decay_y = y_smooth[peak_idx:]
-        if len(decay_x) > 2:
-            decay_slope = (decay_y[-1] - decay_y[0]) / (decay_x[-1] - decay_x[0] + 0.001)
+        if len(decay_y) > 1:
+            minima_idx = np.argmin(decay_y)
+            minima_position = decay_x[minima_idx]
+            minima_height = decay_y[minima_idx]
+        else:
+            minima_idx = 0
+            minima_position = peak_position
+            minima_height = peak_height
+
+        # Decay slope (from peak to minima - excludes the outer-rise portion)
+        if len(decay_y) > 1 and minima_idx > 0:
+            decay_slope = (minima_height - peak_height) / (minima_position - peak_position + 0.001)
         else:
             decay_slope = 0
-        
-        # Outer-rise magnitude (the 'hump' near the outside)
-        outer_start_idx = int(0.7 * len(x_smooth))
-        outer_end_idx = int(0.95 * len(x_smooth))
-        
-        if outer_start_idx < 0:
-            outer_start_idx = 0
-        if outer_end_idx > len(x_smooth):
-            outer_end_idx = len(x_smooth)
-        if outer_start_idx >= outer_end_idx:
-            outer_start_idx = max(0, outer_end_idx - 10)
-        
-        outer_region_x = x_smooth[outer_start_idx:outer_end_idx]
-        outer_region_y = y_smooth[outer_start_idx:outer_end_idx]
-        
-        if len(outer_region_y) > 5:
-            outer_rise_magnitude = np.max(outer_region_y) - y_smooth[-1]
+
+        # Outer-rise magnitude - the increase in the curve after the minima
+        post_minima_y = decay_y[minima_idx:]
+        if len(post_minima_y) > 1:
+            outer_rise_magnitude = np.max(post_minima_y) - minima_height
             if outer_rise_magnitude < 0:
                 outer_rise_magnitude = 0
         else:
@@ -171,6 +177,7 @@ def fit_spline_and_extract_features(x, y, smoothing=SPLINE_SMOOTHING):
             'peak_position': peak_position,
             'rise_slope': rise_slope,
             'decay_slope': decay_slope,
+            'minima_position': minima_position,
             'outer_rise_magnitude': outer_rise_magnitude,
             'area_under_curve': area_under_curve,
             'avg_normalized_cell_size': avg_normalized_cell_size,
@@ -254,6 +261,7 @@ def process_single_image_radius(csv_path, summary_info, debug=False):
         'radius_peak_position': features.get('peak_position'),
         'radius_rise_slope': features.get('rise_slope'),
         'radius_decay_slope': features.get('decay_slope'),
+        'radius_minima_position': features.get('minima_position'),
         'radius_outer_rise_magnitude': features.get('outer_rise_magnitude'),
         'radius_area_under_curve': features.get('area_under_curve'),
         'radius_avg_normalized_cell_size': features.get('avg_normalized_cell_size'),
@@ -372,6 +380,7 @@ def process_single_image_file_based(image_name, cell_assignments_folder, summary
         'file_peak_position': features.get('peak_position'),
         'file_rise_slope': features.get('rise_slope'),
         'file_decay_slope': features.get('decay_slope'),
+        'file_minima_position': features.get('minima_position'),
         'file_outer_rise_magnitude': features.get('outer_rise_magnitude'),
         'file_area_under_curve': features.get('area_under_curve'),
         'file_avg_normalized_cell_size': features.get('avg_normalized_cell_size'),
@@ -418,6 +427,7 @@ def combine_quarters_to_roots(image_features):
                 'radius_peak_position_values': [],
                 'radius_rise_slope_values': [],
                 'radius_decay_slope_values': [],
+                'radius_minima_position_values': [],
                 'radius_outer_rise_magnitude_values': [],
                 'radius_area_under_curve_values': [],
                 'radius_avg_normalized_size_values': [],
@@ -426,6 +436,7 @@ def combine_quarters_to_roots(image_features):
                 'file_peak_position_values': [],
                 'file_rise_slope_values': [],
                 'file_decay_slope_values': [],
+                'file_minima_position_values': [],
                 'file_outer_rise_magnitude_values': [],
                 'file_area_under_curve_values': [],
                 'file_avg_normalized_size_values': [],
@@ -451,6 +462,7 @@ def combine_quarters_to_roots(image_features):
             'radius_peak_position': 'radius_peak_position_values',
             'radius_rise_slope': 'radius_rise_slope_values',
             'radius_decay_slope': 'radius_decay_slope_values',
+            'radius_minima_position': 'radius_minima_position_values',
             'radius_outer_rise_magnitude': 'radius_outer_rise_magnitude_values',
             'radius_area_under_curve': 'radius_area_under_curve_values',
             'radius_avg_normalized_cell_size': 'radius_avg_normalized_size_values'
@@ -466,6 +478,7 @@ def combine_quarters_to_roots(image_features):
             'file_peak_position': 'file_peak_position_values',
             'file_rise_slope': 'file_rise_slope_values',
             'file_decay_slope': 'file_decay_slope_values',
+            'file_minima_position': 'file_minima_position_values',
             'file_outer_rise_magnitude': 'file_outer_rise_magnitude_values',
             'file_area_under_curve': 'file_area_under_curve_values',
             'file_avg_normalized_cell_size': 'file_avg_normalized_size_values'
@@ -501,6 +514,7 @@ def combine_quarters_to_roots(image_features):
             'radius_peak_position_values': 'radius_peak_position',
             'radius_rise_slope_values': 'radius_rise_slope',
             'radius_decay_slope_values': 'radius_decay_slope',
+            'radius_minima_position_values': 'radius_minima_position',
             'radius_outer_rise_magnitude_values': 'radius_outer_rise_magnitude',
             'radius_area_under_curve_values': 'radius_area_under_curve',
             'radius_avg_normalized_size_values': 'radius_avg_normalized_cell_size'
@@ -519,6 +533,7 @@ def combine_quarters_to_roots(image_features):
             'file_peak_position_values': 'file_peak_position',
             'file_rise_slope_values': 'file_rise_slope',
             'file_decay_slope_values': 'file_decay_slope',
+            'file_minima_position_values': 'file_minima_position',
             'file_outer_rise_magnitude_values': 'file_outer_rise_magnitude',
             'file_area_under_curve_values': 'file_area_under_curve',
             'file_avg_normalized_size_values': 'file_avg_normalized_cell_size'
@@ -724,20 +739,33 @@ def build_feature_table_incremental(
         if quadrant == 'unknown' or quadrant is None:
             quadrant = parsed.get('quadrant', 'unknown')
         
-        # Get plant number from parsed data or try to extract from root_identifier
-        plant_number = parsed.get('plant_number')
+        # Prefer whatever master_summary already carries for these -- for
+        # filename conventions parse_image_name doesn't understand (e.g. the
+        # tomato set, whose ids come from CrossSections.csv via
+        # attach_tomato_metadata.py) the column is the only correct source.
+        # For the maize naming these were themselves written by
+        # parse_image_name at step 3, so the fallbacks below are unchanged.
+        def from_row(field):
+            value = row.get(field)
+            return None if value is None or pd.isna(value) else value
+
+        plant_number = from_row('plant_number')
+        if plant_number is None:
+            plant_number = parsed.get('plant_number')
         if plant_number is None:
             plant_number = extract_plant_number_from_root(root_identifier)
-        
-        # Get root number from parsed data
-        root_number = parsed.get('root_number')
+
+        root_number = from_row('root_number')
+        if root_number is None:
+            root_number = parsed.get('root_number')
         if root_number is None:
             match = re.search(r'root(\d+)', root_identifier)
             if match:
                 root_number = int(match.group(1))
-        
-        # Get technical replicate from parsed data
-        tech_rep = parsed.get('technical_replicate')
+
+        tech_rep = from_row('technical_replicate')
+        if tech_rep is None:
+            tech_rep = parsed.get('technical_replicate')
         
         summary_info = {
             'image_name': image_name,
@@ -816,8 +844,8 @@ def build_feature_table_incremental(
             if image_name in file_dict:
                 file_feat = file_dict[image_name]
                 # Add file-based features
-                for key in ['file_peak_height', 'file_peak_position', 'file_rise_slope', 
-                            'file_decay_slope', 'file_outer_rise_magnitude', 
+                for key in ['file_peak_height', 'file_peak_position', 'file_rise_slope',
+                            'file_decay_slope', 'file_minima_position', 'file_outer_rise_magnitude',
                             'file_area_under_curve', 'file_avg_normalized_cell_size']:
                     if key in file_feat:
                         combined[key] = file_feat[key]
@@ -884,6 +912,7 @@ def build_feature_table_incremental(
             'radius_peak_position': root_data.get('radius_peak_position', np.nan),
             'radius_rise_slope': root_data.get('radius_rise_slope', np.nan),
             'radius_decay_slope': root_data.get('radius_decay_slope', np.nan),
+            'radius_minima_position': root_data.get('radius_minima_position', np.nan),
             'radius_outer_rise_magnitude': root_data.get('radius_outer_rise_magnitude', np.nan),
             'radius_area_under_curve': root_data.get('radius_area_under_curve', np.nan),
             'radius_avg_normalized_cell_size': root_data.get('radius_avg_normalized_cell_size', np.nan),
@@ -892,6 +921,7 @@ def build_feature_table_incremental(
             'file_peak_position': root_data.get('file_peak_position', np.nan),
             'file_rise_slope': root_data.get('file_rise_slope', np.nan),
             'file_decay_slope': root_data.get('file_decay_slope', np.nan),
+            'file_minima_position': root_data.get('file_minima_position', np.nan),
             'file_outer_rise_magnitude': root_data.get('file_outer_rise_magnitude', np.nan),
             'file_area_under_curve': root_data.get('file_area_under_curve', np.nan),
             'file_avg_normalized_cell_size': root_data.get('file_avg_normalized_cell_size', np.nan)

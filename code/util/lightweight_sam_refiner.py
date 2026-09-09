@@ -1,3 +1,9 @@
+# Optional mask refinement with a small SAM model.
+#
+# Off by default. At 0.98 confidence the raw YOLO masks were already tight
+# enough that refining changed little; this exists for imagery where the
+# segmenter is less certain.
+
 import cv2
 import numpy as np
 import torch

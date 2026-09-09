@@ -1,3 +1,9 @@
+# Runs the root detector and splits each root into quadrants.
+#
+# Where a slide holds several roots only the highest-confidence detection is
+# carried forward, which keeps half-imaged roots at the frame edge out of the
+# dataset. Writes crops plus a metadata sidecar per root.
+
 from ultralytics import YOLO
 import cv2
 import os
@@ -5,6 +11,7 @@ import numpy as np
 import json
 import csv
 from pathlib import Path
+from code.config import CHOSEN_RESULTS_FOLDER, CHOSEN_SOME_FOLDER, ROOT_DETECTION_WEIGHTS
 
 PIXEL_TO_UM = 50 / 77
 
@@ -88,7 +95,7 @@ def split_into_quadrants(image, base_name, output_dir="quadrants", original_imag
     return saved_paths, metadata_paths
 
 def test_root_model(
-    weights_path="models/runs/detect/runs/root_detection/root_detector/weights/best.pt",
+    weights_path=ROOT_DETECTION_WEIGHTS,
     image_path="test_root.jpg",
     confidence=0.50,
     output_dir="root_results",
@@ -153,7 +160,7 @@ def test_root_model(
     return detections
 
 def batch_test_root_model(
-    weights_path="models/runs/detect/runs/root_detection/root_detector/weights/best.pt",
+    weights_path=ROOT_DETECTION_WEIGHTS,
     image_folder="images",
     confidence=0.50,
     output_dir="root_results"
@@ -298,6 +305,6 @@ def get_pixel_to_um_conversion(crop_image_path):
 
 if __name__ == "__main__":
     batch_test_root_model(
-        image_folder="data/chosen_some", 
-        output_dir="data/chosen_results"
+        image_folder=CHOSEN_SOME_FOLDER, 
+        output_dir=CHOSEN_RESULTS_FOLDER
     )

@@ -1,5 +1,11 @@
+# Sweeps the morphological kernel sizes.
+#
+# The close and open kernels strongly affect how the exclusion mask is
+# cleaned up; this shows the effect of each setting side by side.
+
 from code.yolo.test_robust import batch_test_robust_model
 import os
+from code.config import DATA_FOLDER, EXCLUSION_WEIGHTS, ROBUST_CELL_WEIGHTS
 
 # Create output directories for comparison
 output_no_morph = "test_results_no_morph"
@@ -7,9 +13,9 @@ output_with_morph = "test_results_with_morph"
 
 # Test without morphological post-processing
 results_no_morph = batch_test_robust_model(
-    cell_weights="models/runs/segment/runs/robust_segmentation/robust_cell_detector/weights/best.pt",
-    exclusion_weights="models/runs/segment/runs/exclusion_model/inner_part_detector/weights/best.pt",
-    image_folder="data/test_folder",
+    cell_weights=ROBUST_CELL_WEIGHTS,
+    exclusion_weights=EXCLUSION_WEIGHTS,
+    image_folder=DATA_FOLDER / 'test_folder',
     confidence=0.98,
     exclusion_confidence=0.5,
     output_dir=output_no_morph,
@@ -34,9 +40,9 @@ results_no_morph = batch_test_robust_model(
 
 # Test with morphological post-processing
 results_with_morph = batch_test_robust_model(
-    cell_weights="models/runs/segment/runs/robust_segmentation/robust_cell_detector/weights/best.pt",
-    exclusion_weights="models/runs/segment/runs/exclusion_model/inner_part_detector/weights/best.pt",
-    image_folder="data/test_folder",
+    cell_weights=ROBUST_CELL_WEIGHTS,
+    exclusion_weights=EXCLUSION_WEIGHTS,
+    image_folder=DATA_FOLDER / 'test_folder',
     confidence=0.98,
     exclusion_confidence=0.5,
     output_dir=output_with_morph,

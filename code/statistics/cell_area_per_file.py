@@ -1,3 +1,8 @@
+# Mean cell area per cell file, as a table.
+#
+# Flattens the per-image assignments into one row per file index so the
+# outward size trend can be modelled directly.
+
 import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt

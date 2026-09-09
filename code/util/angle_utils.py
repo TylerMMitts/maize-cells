@@ -1,3 +1,9 @@
+# Angle handling for quadrant images.
+#
+# A quadrant carries its own angular range, taken from the filename prefix,
+# so every angle comparison has to go through here rather than assuming a
+# full circle.
+
 import numpy as np
 import pandas as pd
 from typing import Tuple, List, Optional

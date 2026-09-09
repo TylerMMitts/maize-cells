@@ -1,3 +1,8 @@
+# Mapper graphs of the cell population.
+#
+# Summarises the shape of the whole point cloud as a graph, under several
+# choices of lens, and writes an interactive HTML per configuration.
+
 import numpy as np
 import pandas as pd
 import os

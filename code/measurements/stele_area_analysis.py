@@ -1,3 +1,9 @@
+# The same question, against stele area rather than root radius.
+#
+# Bins roots by stele area and compares the normalised profiles. Kept
+# separate from the radius version because the two size measures do not
+# always move together.
+
 import os
 import pandas as pd
 import numpy as np
@@ -19,13 +25,7 @@ PROJECT_ROOT = CODE_DIR.parent  # project root
 sys.path.insert(0, str(CODE_DIR))
 
 # Import utility functions
-from util import (
-    load_measurement_csv,
-    load_image_summary,
-    find_all_measurement_files,
-    normalize_radius_and_area,
-    determine_angle_range
-)
+from code.util import load_measurement_csv, load_image_summary, find_all_measurement_files, normalize_radius_and_area, determine_angle_range
 
 # Use absolute paths
 MEASUREMENTS_FOLDER = str(PROJECT_ROOT / "results" / "measurements_all")

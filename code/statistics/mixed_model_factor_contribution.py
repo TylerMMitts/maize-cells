@@ -1,3 +1,8 @@
+# How much of each feature does each factor explain?
+#
+# Mixed-effects models with a random intercept per plant group, so repeated
+# roots from one plant are not treated as independent samples.
+
 import os
 import numpy as np
 import pandas as pd
@@ -49,10 +54,18 @@ def usable_factors(df, feature):
     return sub, factors_to_use, skipped
 
 
-def fit_mixedlm(df, feature, factors, group_col):
-    formula = feature + " ~ " + " + ".join(f"C({f})" for f in factors)
-    model = smf.mixedlm(formula, data=df, groups=df[group_col])
-    return model.fit(reml=False)
+def fit_model(df, feature, factors, group_col, use_mixed):
+    formula = feature + " ~ " + " + ".join(f"C({f})" for f in factors) if factors else f"{feature} ~ 1"
+    if use_mixed:
+        model = smf.mixedlm(formula, data=df, groups=df[group_col])
+        result = model.fit(reml=False)
+        _ = result.fittedvalues
+        return result
+    return smf.ols(formula, data=df).fit()
+
+
+def model_df(result, use_mixed):
+    return result.df_modelwc if use_mixed else result.df_model
 
 
 def fit_one_feature(df, feature):
@@ -66,7 +79,14 @@ def fit_one_feature(df, feature):
     if sub[GROUP_COLUMN].nunique() < 2:
         raise ValueError(f"Insufficient groups for random effect: {sub[GROUP_COLUMN].nunique()} unique {GROUP_COLUMN}")
 
-    full_result = fit_mixedlm(sub, feature, factors_to_use, GROUP_COLUMN)
+    model_type = 'MixedLM'
+    try:
+        full_result = fit_model(sub, feature, factors_to_use, GROUP_COLUMN, use_mixed=True)
+    except Exception:
+        model_type = 'OLS_fallback'
+        full_result = fit_model(sub, feature, factors_to_use, GROUP_COLUMN, use_mixed=False)
+
+    use_mixed = (model_type == 'MixedLM')
 
     coef_rows = []
     for name, coef in full_result.params.items():
@@ -81,21 +101,18 @@ def fit_one_feature(df, feature):
             'level': level,
             'coefficient': coef,
             'p_value': full_result.pvalues[name],
+            'model_type': model_type,
         })
 
     contribution_rows = []
     for factor in factors_to_use:
         remaining = [f for f in factors_to_use if f != factor]
         try:
-            if remaining:
-                reduced_result = fit_mixedlm(sub, feature, remaining, GROUP_COLUMN)
-            else:
-                # No factors left - intercept + random effect only
-                reduced_result = smf.mixedlm(f"{feature} ~ 1", data=sub, groups=sub[GROUP_COLUMN]).fit(reml=False)
+            reduced_result = fit_model(sub, feature, remaining, GROUP_COLUMN, use_mixed=use_mixed)
 
             chi2_stat = 2 * (full_result.llf - reduced_result.llf)
             chi2_stat = max(chi2_stat, 0.0)  # guard against tiny negative values from optimizer noise
-            df_diff = full_result.df_modelwc - reduced_result.df_modelwc
+            df_diff = model_df(full_result, use_mixed) - model_df(reduced_result, use_mixed)
             df_diff = max(int(round(df_diff)), 1)
             p_value = scipy_stats.chi2.sf(chi2_stat, df_diff)
 
@@ -105,6 +122,7 @@ def fit_one_feature(df, feature):
                 'chi2': chi2_stat,
                 'df': df_diff,
                 'p_value': p_value,
+                'model_type': model_type,
             })
         except Exception as e:
             contribution_rows.append({
@@ -113,6 +131,7 @@ def fit_one_feature(df, feature):
                 'chi2': np.nan,
                 'df': np.nan,
                 'p_value': np.nan,
+                'model_type': model_type,
             })
 
     fitted = full_result.fittedvalues
@@ -124,6 +143,7 @@ def fit_one_feature(df, feature):
         'n_observations': len(sub),
         'factors_used': ','.join(factors_to_use),
         'r2': r2,
+        'model_type': model_type,
     }
 
     return coef_rows, contribution_rows, summary_row, skipped
@@ -202,7 +222,8 @@ def main():
         all_coef_rows.extend(coef_rows)
         all_contribution_rows.extend(contribution_rows)
         all_summary_rows.append(summary_row)
-        print(f"  n={summary_row['n_observations']}, factors={summary_row['factors_used']}, R²={summary_row['r2']:.4f}")
+        print(f"  n={summary_row['n_observations']}, factors={summary_row['factors_used']}, "
+              f"R²={summary_row['r2']:.4f}, model={summary_row['model_type']}")
 
     coefficients_df = pd.DataFrame(all_coef_rows)
     contribution_df = pd.DataFrame(all_contribution_rows)
@@ -217,7 +238,6 @@ def main():
 
     create_coefficient_heatmap(coefficients_df, OUTPUT_FOLDER)
     create_contribution_plot(contribution_df, OUTPUT_FOLDER)
-
 
 
 if __name__ == "__main__":

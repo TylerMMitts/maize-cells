@@ -1,3 +1,9 @@
+# The small web server behind the QC review page.
+#
+# Serves the QC report and accepts the delete decisions made in the browser.
+# Kept separate from qc_manager so importing the manager does not pull in
+# http.server unless QC is actually run.
+
 import json
 import webbrowser
 import socket
@@ -21,7 +27,7 @@ class QCHandler(SimpleHTTPRequestHandler):
             path = self.path.split('?')[0]  # Remove query parameters
             path = path.lstrip('/')
             
-            print(f"\n{'='*60}")
+            print(f"\n")
             print(f"📥 GET Request:")
             print(f"   Raw path: {self.path}")
             print(f"   Cleaned path: '{path}'")

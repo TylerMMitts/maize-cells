@@ -1,3 +1,9 @@
+# Reviews newly segmented images and flags bad ones.
+#
+# Builds an HTML report of every new quadrant with its cell count, and can
+# serve it for manual review. Only new images are shown, so a re-run does not
+# ask about images already accepted.
+
 import pandas as pd
 import numpy as np
 import shutil
@@ -10,6 +16,7 @@ import traceback
 import sys
 import urllib.parse
 import cv2
+from code.config import CHOSEN_RESULTS_FOLDER
 
 # Set up logger
 logger = logging.getLogger(__name__)
@@ -253,7 +260,7 @@ class QCManager:
                 print(f"Failed to delete {csv_path.name}: {e}")
         
         # 3. Look for quadrant images in data/chosen_results
-        quadrant_dir = Path("data/chosen_results")
+        quadrant_dir = Path(CHOSEN_RESULTS_FOLDER)
         if quadrant_dir.exists():
             for ext in ['.jpg', '.png', '.jpeg', '.tif', '.tiff']:
                 quad_path = quadrant_dir / f"{image_name}{ext}"
@@ -945,37 +952,15 @@ class QCManager:
             print(f"HTML report not found at: {report_path}")
             self._create_html_report(qc_df)
         
-        # Try multiple import paths
-        server_module = None
+        # Imported here rather than at module scope so the QC web server and
+        # its http.server machinery are only loaded when QC actually runs.
+        # The three-way fallback this replaces also mutated sys.path, which
+        # changed how every later import in the process resolved.
         try:
-            # Try relative import first (when running from pipeline)
             from code.quality_control.qc_server import start_qc_server, stop_qc_server
-            server_module = True
-            print("Imported qc_server from code.quality_control")
-        except ImportError as e:
-            print(f"Import from code.quality_control failed: {e}")
-            try:
-                # Try direct import (when running script directly)
-                sys.path.insert(0, str(Path(__file__).parent))
-                from qc_server import start_qc_server, stop_qc_server
-                server_module = True
-                print("Imported qc_server from local directory")
-            except ImportError as e2:
-                print(f"Local import failed: {e2}")
-                try:
-                    # Try adding parent directory
-                    sys.path.insert(0, str(Path(__file__).parent.parent))
-                    from quality_control.qc_server import start_qc_server, stop_qc_server
-                    server_module = True
-                    print("Imported qc_server from quality_control")
-                except ImportError as e3:
-                    print(f"All imports failed: {e3}")
-        
-        if server_module is None:
-            print(f"\nCould not import QC server module.")
-            print("Please make sure qc_server.py is in the same directory.")
-            print(f"Current file: {__file__}")
-            print(f"Looking for: qc_server.py in {Path(__file__).parent}")
+        except ImportError as exc:
+            print(f'Could not import the QC server module: {exc}')
+            print(f'Expected qc_server.py in {Path(__file__).parent}')
             return
         
         # Change to QC folder so relative paths work
@@ -1069,9 +1054,9 @@ if __name__ == "__main__":
     # Test the QC Manager with sample data
     print("Testing QC Manager")
     
-    # Use absolute paths
-    measurements_folder = Path("d:/jagdeep/results/measurements_all")
-    output_folder = Path("d:/jagdeep/results")
+    from code.config import MEASUREMENTS_FOLDER, RESULTS_FOLDER
+    measurements_folder = MEASUREMENTS_FOLDER
+    output_folder = RESULTS_FOLDER
     
     # Create a test QC manager
     qc = QCManager(
@@ -1104,7 +1089,7 @@ if __name__ == "__main__":
             {'name': 'test_bad_2', 'n_cells': 3, 'is_bad': True},
         ]
         
-        chosen_dir = Path("data/chosen_results")
+        chosen_dir = Path(CHOSEN_RESULTS_FOLDER)
         chosen_dir.mkdir(parents=True, exist_ok=True)
         
         for test_img in test_images:

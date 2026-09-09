@@ -1,8 +1,14 @@
+# Multidimensional scaling of the Wasserstein distances.
+#
+# Places each image in a plane so that distance between points approximates
+# the persistence-diagram distance between images.
+
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
 from sklearn import decomposition, manifold, metrics, preprocessing
 import os
+from code.config import RESULTS_FOLDER
 
 def load_wasserstein_csv(csv_path):
     df = pd.read_csv(csv_path, index_col=0)
@@ -34,7 +40,7 @@ def mds_from_wasserstein_csv(csv_path, output_path=None, title=None, show=False)
     X_mds = mds_scaling(distance_matrix, sample_names=sample_names, output_path=output_path, title=title, show=show)
     return X_mds, sample_names
 
-def mds_scaling(bns, labels=None, folder_names=None, sample_names=None, output_path='results/tda_results/mds_plot.png', title='MDS: Piecewise distances', show=False):
+def mds_scaling(bns, labels=None, folder_names=None, sample_names=None, output_path=RESULTS_FOLDER / 'tda_results' / 'mds_plot.png', title='MDS: Piecewise distances', show=False):
     # MDS parameters
     mds_kw = {'n_components': 2, 'dissimilarity': 'precomputed', 'random_state': 0}
     

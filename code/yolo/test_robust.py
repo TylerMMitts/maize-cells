@@ -1,3 +1,8 @@
+# Runs the cell segmenter and applies the full post-process.
+#
+# Region growing, exclusion filtering and overlap removal, in the same order
+# the pipeline uses. Useful for testing settings on a handful of images.
+
 from ultralytics import YOLO
 import cv2
 import os
@@ -5,6 +10,7 @@ import numpy as np
 import pandas as pd
 import gc
 import torch
+from code.config import EXCLUSION_WEIGHTS, ROBUST_CELL_WEIGHTS
 
 # Try to enable OpenCL for GPU acceleration
 try:
@@ -399,8 +405,8 @@ def draw_cells_on_image(image, cell_masks, color=(0, 0, 255), thickness=2):
     return img
 
 def batch_test_robust_model(
-    cell_weights="models/runs/segment/runs/robust_segmentation/robust_cell_detector/weights/best.pt",
-    exclusion_weights="models/runs/segment/runs/exclusion_model/inner_part_detector/weights/best.pt",
+    cell_weights=ROBUST_CELL_WEIGHTS,
+    exclusion_weights=EXCLUSION_WEIGHTS,
     image_folder="cropped_images",
     confidence=0.25,
     exclusion_confidence=0.5,

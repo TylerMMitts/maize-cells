@@ -1,3 +1,9 @@
+# Predicts shape features from cheap measurements.
+#
+# Superseded by best_combo_model, which searches combinations rather than
+# using one fixed predictor set. Kept because the pipeline still refers to
+# its outputs.
+
 import pandas as pd
 import numpy as np
 from scipy import stats
@@ -11,12 +17,13 @@ from sklearn.linear_model import LinearRegression
 from sklearn.metrics import mean_squared_error, r2_score, mean_absolute_error
 from sklearn.pipeline import Pipeline
 import warnings
+from code.config import CELL_FILE_COUNTS_FOLDER, MASTER_SUMMARY_PATH, RESULTS_FOLDER
 warnings.filterwarnings('ignore')
 
 # Define paths
-master_path = Path('results/master_summary.csv')
-cell_file_dir = Path('results/cell_file/cell_file_counting')
-output_dir = Path('results/predictive_model')
+master_path = Path(MASTER_SUMMARY_PATH)
+cell_file_dir = Path(CELL_FILE_COUNTS_FOLDER)
+output_dir = Path(RESULTS_FOLDER / 'predictive_model')
 output_dir.mkdir(parents=True, exist_ok=True)
 
 # Load master summary

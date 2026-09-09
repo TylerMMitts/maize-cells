@@ -1,3 +1,8 @@
+# Compares colour spaces for separating cells from walls.
+#
+# Exploratory: used once to choose the channel the segmentation pre-process
+# runs on. Kept as the record of why that choice was made.
+
 import cv2
 import numpy as np
 import matplotlib.pyplot as plt

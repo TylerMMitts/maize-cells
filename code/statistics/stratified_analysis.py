@@ -1,3 +1,9 @@
+# Does the pattern hold inside every subgroup?
+#
+# Repeats the main analysis within each treatment and root type separately,
+# so a relationship that only exists in the pooled data would show up as
+# absent here.
+
 import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
@@ -9,10 +15,11 @@ from sklearn.pipeline import Pipeline
 from sklearn.metrics import r2_score, mean_squared_error, mean_absolute_error
 from scipy import stats
 import warnings
+from code.config import CELL_FILE_COUNTS_FOLDER, MASTER_SUMMARY_PATH, RESULTS_FOLDER
 warnings.filterwarnings('ignore')
 
 
-def load_data(master_path="results/master_summary.csv", cell_file_dir="results/cell_file/cell_file_counting"):
+def load_data(master_path=MASTER_SUMMARY_PATH, cell_file_dir=CELL_FILE_COUNTS_FOLDER):
 
     # Load master summary
     df_master = pd.read_csv(master_path)
@@ -88,7 +95,6 @@ def run_stratified_analysis(df, group_col, target_cols=None):
     for target_col, target_name in target_cols.items():
         print(f"\n  {target_name}:")
         print(f"  {'Group':<15} {'Slope':>10} {'Intercept':>12} {'R²':>10} {'RMSE':>10} {'n':>8}")
-        print("  " + "-" * 70)
         
         target_results = {}
         
@@ -290,9 +296,9 @@ def generate_stratified_predictions(stratified_results, first_file_values=None):
 
 
 def run_stratified_analysis_full(
-    master_path="results/master_summary.csv",
-    cell_file_dir="results/cell_file/cell_file_counting",
-    output_dir="results/stratified_analysis",
+    master_path=MASTER_SUMMARY_PATH,
+    cell_file_dir=CELL_FILE_COUNTS_FOLDER,
+    output_dir=RESULTS_FOLDER / 'stratified_analysis',
     factors=['treatment', 'root_type', 'population']
 ):
 
@@ -371,9 +377,9 @@ def run_stratified_analysis_full(
 
 
 def main(
-    master_path="../results/master_summary.csv",
-    cell_file_dir="../results/cell_file/cell_file_counting",
-    output_dir="../results/stratified_analysis",
+    master_path=MASTER_SUMMARY_PATH,
+    cell_file_dir=CELL_FILE_COUNTS_FOLDER,
+    output_dir=RESULTS_FOLDER / 'stratified_analysis',
     factors=['treatment', 'root_type', 'population']
 ):
     

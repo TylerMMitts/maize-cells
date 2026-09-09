@@ -1,3 +1,10 @@
+# Filename parsing, loading, and the master summary.
+#
+# parse_image_name is the single definition of the naming convention that
+# every stage depends on: quadrant, plot, plant, root type, treatment and
+# replicate all come from the filename. Also owns the append-only update of
+# master_summary.csv.
+
 import os
 import pandas as pd
 import json
@@ -45,36 +52,30 @@ def parse_image_name(filename):
         quadrant_match = re.match(rf'{parsed["quadrant"]}_(\d+)_', base_name)
         if quadrant_match:
             parsed['plot_number'] = int(quadrant_match.group(1))
-            print(f"[DEBUG] Found plot_number: {parsed['plot_number']}")
-    
+
     # 3. Extract root_type (W followed by number) - e.g., W3 from _W3_
     root_type_match = re.search(r'_W(\d+)_', base_name)
     if root_type_match:
         parsed['root_type'] = f'W{root_type_match.group(1)}'
-        print(f"[DEBUG] Found root_type: {parsed['root_type']}")
-    
+
     # 4. Extract treatment (WS, WW, MCS) - ONLY if present
     for t in ['WS', 'WW', 'MCS']:
         if t in base_name:
             parsed['treatment'] = t
-            print(f"[DEBUG] Found treatment: {parsed['treatment']}")
             break
-    
+
     # 5. Extract plant_number and root_number from decimal format (e.g., 2.1)
     # This pattern matches: _(\d+)\.(\d+)_ or _(\d+)\.(\d+)_root or _(\d+)\.(\d+)_test
     decimal_match = re.search(r'_(\d+)\.(\d+)(?:_|$)', base_name)
     if decimal_match:
         parsed['plant_number'] = int(decimal_match.group(1))
         parsed['root_number'] = int(decimal_match.group(2))
-        print(f"[DEBUG] Found plant_number from decimal: {parsed['plant_number']}")
-        print(f"[DEBUG] Found root_number from decimal: {parsed['root_number']}")
     else:
         # If no decimal format, try P number format (e.g., P1)
         plant_match = re.search(r'P(\d+)', base_name)
         if plant_match:
             parsed['plant_number'] = int(plant_match.group(1))
-            print(f"[DEBUG] Found plant_number from P: {parsed['plant_number']}")
-        
+
         # Try root number after root_type (e.g., WW_1)
         root_after_type_match = re.search(r'_([A-Z]{2,3})_(\d+)', base_name)
         if root_after_type_match:
@@ -83,20 +84,17 @@ def parse_image_name(filename):
                 # Only set root_number if not already set
                 if parsed['root_number'] is None:
                     parsed['root_number'] = int(root_after_type_match.group(2))
-                    print(f"[DEBUG] Found root_number from treatment: {parsed['root_number']}")
-    
+
     # 6. Extract technical_replicate
     # First try: test number (e.g., test992)
     test_match = re.search(r'test(\d+)', base_name)
     if test_match:
         parsed['technical_replicate'] = int(test_match.group(1))
-        print(f"[DEBUG] Found technical_replicate from test: {parsed['technical_replicate']}")
     else:
         # Second try: number in parentheses (e.g., (1))
         tech_match = re.search(r'\((\d+)\)', base_name)
         if tech_match:
             parsed['technical_replicate'] = int(tech_match.group(1))
-            print(f"[DEBUG] Found technical_replicate from parentheses: {parsed['technical_replicate']}")
         else:
             # Third try: number after root at end (e.g., root1)
             root_end_match = re.search(r'root(\d+)$', base_name)
@@ -209,58 +207,12 @@ def load_cell_file_data(cell_file_counts_folder, image_name):
 
 
 def _import_rebuild_master_summary():
-    # Try relative import (when used as part of package)
-    try:
-        from ..measurements.create_master_summary_only import rebuild_master_summary
-        return rebuild_master_summary
-    except (ImportError, ValueError):
-        pass
-    
-    # Try absolute import (when code folder is in PYTHONPATH)
-    try:
-        from code.measurements.create_master_summary_only import rebuild_master_summary
-        return rebuild_master_summary
-    except ImportError:
-        pass
-    
-    # Try direct import (when running from project root)
-    try:
-        from measurements.create_master_summary_only import rebuild_master_summary
-        return rebuild_master_summary
-    except ImportError:
-        pass
-    
-    # Try importing using importlib (most flexible)
-    try:
-        import importlib.util
-        import sys
-        # Get the project root (assuming this file is in code/utils/)
-        current_dir = Path(__file__).parent
-        project_root = current_dir.parent.parent  # Go up to project root
-        
-        # Try different possible paths
-        possible_paths = [
-            project_root / "code" / "measurements" / "create_master_summary_only.py",
-            project_root / "measurements" / "create_master_summary_only.py",
-            Path.cwd() / "code" / "measurements" / "create_master_summary_only.py",
-            Path.cwd() / "measurements" / "create_master_summary_only.py",
-        ]
-        
-        for module_path in possible_paths:
-            if module_path.exists():
-                spec = importlib.util.spec_from_file_location("create_master_summary_only", module_path)
-                module = importlib.util.module_from_spec(spec)
-                sys.modules["create_master_summary_only"] = module
-                spec.loader.exec_module(module)
-                return module.rebuild_master_summary
-    except Exception as e:
-        logger.debug(f"Importlib import failed: {e}")
-    
-    raise ImportError(
-        "Could not import rebuild_master_summary. "
-        "Please ensure create_master_summary_only.py exists in code/measurements/ "
-        "and that the path is correct."
-    )
+    # Imported here rather than at module scope because
+    # create_master_summary_only imports parse_image_name from this module,
+    # so a top-level import would be circular. Deferring it to call time
+    # breaks the cycle.
+    from code.measurements.create_master_summary_only import rebuild_master_summary
+    return rebuild_master_summary
 
 
 def update_master_summary(
@@ -273,13 +225,6 @@ def update_master_summary(
     dataset_metadata: Optional[Dict[str, Any]] = None
 ) -> pd.DataFrame:
     
-    print(f"[DEBUG file_utils.py] update_master_summary called with:")
-    print(f"[DEBUG file_utils.py]   species='{species}'")
-    print(f"[DEBUG file_utils.py]   population='{population}'")
-    print(f"[DEBUG file_utils.py]   force_rebuild={force_rebuild}")
-    print(f"[DEBUG file_utils.py]   output_path={output_path}")
-    print(f"[DEBUG file_utils.py]   file exists: {os.path.exists(output_path)}")
-    
     # Import the rebuild function using the helper
     rebuild_master_summary = _import_rebuild_master_summary()
     
@@ -290,13 +235,9 @@ def update_master_summary(
     existing_species = {}  # Track original species for each image
     
     if os.path.exists(output_path) and not force_rebuild:
-        print(f"[DEBUG] Attempting to load existing master_summary from {output_path}")
         try:
             existing_df = pd.read_csv(output_path)
-            print(f"[DEBUG] Successfully loaded {len(existing_df)} rows")
-            print(f"[DEBUG] ACTUAL populations in loaded CSV: {existing_df['population'].unique()}")
-            print(f"[DEBUG] ACTUAL species in loaded CSV: {existing_df['species'].unique()}")
-            
+
             # Validate the loaded dataframe has required columns
             required_cols = ['image_name', 'population', 'species']
             missing_cols = [col for col in required_cols if col not in existing_df.columns]
@@ -314,10 +255,6 @@ def update_master_summary(
                 existing_populations[img_name] = row.get('population', population)
                 existing_species[img_name] = row.get('species', species)
             
-            print(f"[DEBUG] Built existing_populations dict with {len(existing_populations)} entries")
-            print(f"[DEBUG] Unique populations in dict: {set(existing_populations.values())}")
-            print(f"[DEBUG] Sample entries: {list(existing_populations.items())[:3]}")
-            
             # Check if we have mixed populations that would be overwritten
             unique_populations = set(existing_populations.values())
             if len(unique_populations) > 1 and force_rebuild:
@@ -328,12 +265,8 @@ def update_master_summary(
                     logger.warning(f"  - {pop}: {count} images")
                 logger.warning(f"\nForce rebuild will OVERWRITE ALL to: '{population}'")
                 logger.warning("This cannot be undone! Consider setting force_rebuild=False")
-                logger.warning("="*70)
             
             logger.info(f"Loaded existing master summary with {len(existing_df)} rows covering {len(existing_images)} images")
-            logger.info(f"Existing populations in dataset: {set(existing_populations.values())}")
-            logger.info(f"NOTE: Existing images will KEEP their original population/species values")
-            logger.info(f"NOTE: ONLY NEW images will be assigned population='{population}', species='{species}'")
         except Exception as e:
             logger.error("ERROR: Could not load existing master_summary.csv")
             logger.error(f"Error: {e}")
@@ -349,9 +282,7 @@ def update_master_summary(
             raise RuntimeError(f"Cannot load master_summary.csv and automatic rebuild is disabled for safety. Error: {e}")
     
     # If force_rebuild or no existing file, use the rebuild function
-    print(f"[DEBUG] Checking rebuild condition: force_rebuild={force_rebuild}, existing_df is None={existing_df is None}")
     if force_rebuild or existing_df is None:
-        print(f"[DEBUG] ENTERING REBUILD PATH")
         logger.warning("REBUILDING master summary from scratch (force_rebuild=True)")
         logger.warning(f"All images will be assigned: Population='{population}', Species='{species}'")
         
@@ -379,8 +310,6 @@ def update_master_summary(
         return rebuilt_df
     
     # Find all measurement CSV files
-    print(f"[DEBUG] Taking APPEND-ONLY path")
-    print(f"[DEBUG] Scanning for new measurement CSVs in {measurements_folder}")
     csv_files = glob.glob(os.path.join(measurements_folder, "*_measurements.csv"))
     
     # CRITICAL FIX: Filter out any CSV files that don't have corresponding images
@@ -392,16 +321,11 @@ def update_master_summary(
         # This is a safety check to prevent processing stale CSVs
         valid_csv_files.append((csv_path, base_name))
     
-    print(f"[DEBUG] Found {len(valid_csv_files)} total measurement CSVs")
-    print(f"[DEBUG] Existing images in master_summary: {len(existing_images)}")
-    print(f"[DEBUG] Sample existing_images: {list(existing_images)[:5]}")
-    
     new_csv_files = []
     update_csv_files = []  # For existing images that need cell file data updated
-    
+
     for csv_path, base_name in valid_csv_files:
         if base_name not in existing_images:
-            print(f"[DEBUG] NEW IMAGE FOUND: {base_name}")
             new_csv_files.append((csv_path, base_name))
         else:
             # Check if this existing image has file_count=0 and might have new cell file data
@@ -435,9 +359,8 @@ def update_master_summary(
     for csv_path, base_name in new_csv_files:
         try:
             df = pd.read_csv(csv_path)
-            
+
             if df.empty:
-                logger.debug(f"Skipping {base_name}: empty")
                 continue
             
             # Load image summary
@@ -482,13 +405,7 @@ def update_master_summary(
             per_file_str = ''
             if per_file_areas and len(per_file_areas) > 0:
                 per_file_str = ','.join(map(str, per_file_areas))
-                logger.debug(f"  Loaded {len(per_file_areas)} per-file areas for {base_name}")
-            
-            # Build row data for NEW image with provided species and population
-            print(f"[DEBUG file_utils.py] Creating NEW row for {base_name}")
-            print(f"[DEBUG file_utils.py]   species='{species}', population='{population}'")
-            print(f"[DEBUG file_utils.py]   parsed: plant={parsed['plant_number']}, root={parsed['root_number']}, tech_rep={parsed['technical_replicate']}")
-            
+
             row_data = {
                 'image_name': base_name,
                 'quadrant': parsed['quadrant'],
@@ -520,10 +437,7 @@ def update_master_summary(
                         row_data[key] = value
             
             new_data.append(row_data)
-            logger.warning(f"✓ NEW IMAGE: {base_name}")
-            logger.warning(f"  └─ Population: '{population}' (NEW) | Species: '{species}' (NEW)")
-            logger.warning(f"  └─ Plant: {parsed['plant_number']} | Root: {parsed['root_number']} | Files: {file_count}")
-            
+
         except Exception as e:
             logger.error(f"Error processing NEW image {base_name}: {e}", exc_info=True)
             continue
@@ -549,11 +463,6 @@ def update_master_summary(
                 'per_file_avg_areas_um2': per_file_str,
                 'per_file_count': len(per_file_areas)
             }
-            
-            # Get the original population/species that will be preserved
-            orig_pop = existing_populations.get(base_name, population)
-            orig_species = existing_species.get(base_name, species)
-            logger.info(f"Will update EXISTING image {base_name}: {file_count} files (preserving population='{orig_pop}', species='{orig_species}')")
             
         except Exception as e:
             logger.error(f"Error updating EXISTING image {base_name}: {e}", exc_info=True)
@@ -583,19 +492,7 @@ def update_master_summary(
     
     # Create DataFrame from new data
     new_df = pd.DataFrame(new_data)
-    
-    # CRITICAL FIX: Ensure the new DataFrame has the correct species and population
-    print(f"[DEBUG] New DataFrame created with {len(new_df)} rows")
-    print(f"[DEBUG] New DataFrame species: {new_df['species'].unique() if 'species' in new_df.columns else 'MISSING'}")
-    print(f"[DEBUG] New DataFrame population: {new_df['population'].unique() if 'population' in new_df.columns else 'MISSING'}")
-    
-    # Log the new data summary before merging
-    logger.warning("NEW DATA SUMMARY (before merging)")
-    logger.warning(f"New images: {len(new_df)}")
-    logger.warning(f"Populations: {new_df['population'].unique()}")
-    logger.warning(f"Species: {new_df['species'].unique()}")
-    logger.warning(f"Images with per_file_avg_areas: {len(new_df[new_df['per_file_avg_areas_um2'].notna() & (new_df['per_file_avg_areas_um2'] != '')])}")
-    
+
     # Combine with existing data
     # Use concat with sort=False to preserve column order and handle new columns
     combined_df = pd.concat([existing_df, new_df], ignore_index=True, sort=False)
@@ -637,32 +534,6 @@ def update_master_summary(
     
     # Sort the combined dataframe
     combined_df = combined_df.sort_values(['plant_number', 'root_number', 'quadrant']).reset_index(drop=True)
-    
-    # Check that existing populations are preserved
-    for img_name in existing_images:
-        if img_name in combined_df['image_name'].values:
-            row = combined_df[combined_df['image_name'] == img_name].iloc[0]
-            orig_pop = existing_populations.get(img_name)
-            curr_pop = row['population']
-            if orig_pop and orig_pop != curr_pop:
-                logger.error(f"ERROR: {img_name} population changed from '{orig_pop}' to '{curr_pop}' (should be preserved!)")
-            else:
-                logger.info(f"{img_name} population preserved: '{curr_pop}'")
-    
-    # Verify new images have the correct population
-    for img_name in new_df['image_name'].values:
-        if img_name in combined_df['image_name'].values:
-            row = combined_df[combined_df['image_name'] == img_name].iloc[0]
-            curr_pop = row['population']
-            if curr_pop != population:
-                logger.error(f"ERROR: New image {img_name} has population '{curr_pop}' but should be '{population}'")
-            else:
-                logger.info(f"New image {img_name} population correct: '{curr_pop}'")
-    
-    populations_in_summary = combined_df['population'].unique()
-    logger.warning(f"All populations in summary: {populations_in_summary}")
-    logger.warning(f"Total rows: {len(combined_df)} (existing: {len(existing_images)}, new: {len(new_data)})")
-    logger.warning(f"Images with per_file_avg_areas: {len(combined_df[combined_df['per_file_avg_areas_um2'].notna() & (combined_df['per_file_avg_areas_um2'] != '')])}")
     
     # Save updated master summary
     try:

@@ -1,3 +1,11 @@
+# The pipeline itself: every stage, in order, as one class.
+#
+# RootAnalysisPipeline owns the sequence from raw slide to feature table.
+# Every stage is append-only, so re-running processes only what is new and
+# existing rows keep the species and population already recorded against
+# them. Imports its stage modules inside the methods rather than at the top,
+# so one broken analysis cannot stop the whole pipeline from loading.
+
 import os
 import sys
 import pandas as pd
@@ -25,6 +33,7 @@ from code.util.file_utils import (
     find_all_measurement_files
 )
 from code.util.data_utils import create_root_id
+from code.config import CHOSEN_RESULTS_FOLDER, MEASUREMENTS_FOLDER
 
 def setup_logging(verbose: bool = True) -> logging.Logger:
 
@@ -428,7 +437,7 @@ class RootAnalysisPipeline:
                         centers_path.unlink()
                         self.logger.debug(f"Deleted: {centers_path}")
                     
-                    quadrant_dir = Path("data/chosen_results")
+                    quadrant_dir = Path(CHOSEN_RESULTS_FOLDER)
                     if quadrant_dir.exists():
                         for ext in ['.jpg', '.png', '.jpeg']:
                             quad_path = quadrant_dir / f"{img_name}{ext}"
@@ -1381,7 +1390,6 @@ class RootAnalysisPipeline:
         
         # Dataset info
         lines.append("DATASET INFORMATION")
-        lines.append("-"*70)
         lines.append(f"Species: {self.species}")
         lines.append(f"Population: {self.population}")
         if self.dataset_metadata:
@@ -1392,7 +1400,6 @@ class RootAnalysisPipeline:
         # Processing summary
         if self.processing_summary:
             lines.append("PROCESSING SUMMARY")
-            lines.append("-"*70)
             lines.append(f"Start time: {self.processing_summary.get('start_time', 'N/A')}")
             lines.append(f"End time: {self.processing_summary.get('end_time', 'N/A')}")
             lines.append(f"Duration: {self.processing_summary.get('duration_seconds', 0):.2f} seconds")
@@ -1404,7 +1411,6 @@ class RootAnalysisPipeline:
         # Master summary statistics
         if self.master_df is not None:
             lines.append("MASTER SUMMARY STATISTICS")
-            lines.append("-"*70)
             lines.append(f"Total images: {len(self.master_df)}")
             lines.append(f"Total cells: {self.master_df['n_cells'].sum()}")
             lines.append(f"Average cells per image: {self.master_df['n_cells'].mean():.1f}")
@@ -1512,7 +1518,7 @@ def quick_process_new_images(
 
 
 def update_summaries_only(
-    measurements_folder: str = "results/measurements_all",
+    measurements_folder: str = MEASUREMENTS_FOLDER,
     output_folder: str = "results",
     species: str = "Zea mays",
     population: str = "IBM",

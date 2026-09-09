@@ -1,3 +1,9 @@
+# Regressions of cell size against cell file number.
+#
+# Fits several model forms per root and compares them, to test whether the
+# outward change in cell size is better described as linear, quadratic or
+# something with a turning point.
+
 import os
 import re
 import pandas as pd
@@ -8,10 +14,11 @@ import glob
 import json
 import statsmodels.api as sm
 from scipy.interpolate import interp1d
+from code.config import CELL_FILE_COUNTS_FOLDER, RESULTS_FOLDER
 
-MEASUREMENTS_FOLDER = "results/measurements"
-CELL_FILE_COUNTS_FOLDER = "results/cell_file/cell_file_counting"
-OUTPUT_FOLDER = "results/cell_file/cell_file_regression"
+MEASUREMENTS_FOLDER = RESULTS_FOLDER / 'measurements'
+CELL_FILE_COUNTS_FOLDER = CELL_FILE_COUNTS_FOLDER
+OUTPUT_FOLDER = RESULTS_FOLDER / 'cell_file' / 'cell_file_regression'
 
 # Options: 'derivative', 'cumulative', 'consensus'
 CELL_FILE_METHOD = 'derivative'
@@ -238,7 +245,7 @@ def perform_regression_analysis(image_profiles, output_folder):
     
     with open(os.path.join(output_folder, 'regression_results.txt'), 'w', encoding='utf-8') as f:
         
-        f.write("=" * 80 + "\n")
+        f.write("\n")
         f.write("MODEL 1: Linear Regression (Aggregated Data)\n")
         f.write(model1.summary().as_text())
         
@@ -254,10 +261,10 @@ def perform_regression_analysis(image_profiles, output_folder):
         else:
             f.write(f"    -> NOT SIGNIFICANT: No linear relationship between file number and cell area\n")
         
-        f.write("\n\n" + "=" * 80 + "\n")
+        f.write("\n\n" + "\n")
         f.write("MODEL 2: Linear Regression (Individual Cell Data)\n")
         f.write("area = b0 + b1 * file_number\n")
-        f.write("=" * 80 + "\n")
+        f.write("\n")
         f.write(model2.summary().as_text())
         
         coeffs = model2.params
@@ -272,10 +279,10 @@ def perform_regression_analysis(image_profiles, output_folder):
         else:
             f.write(f"    -> NOT SIGNIFICANT: No linear relationship between file number and cell area\n")
         
-        f.write("\n\n" + "=" * 80 + "\n")
+        f.write("\n\n" + "\n")
         f.write("MODEL 3: Quadratic Regression (Aggregated Data)\n")
         f.write("area = b0 + b1 * file_number + b2 * file_number²\n")
-        f.write("=" * 80 + "\n")
+        f.write("\n")
         f.write(model3.summary().as_text())
         
         coeffs = model3.params
@@ -294,10 +301,10 @@ def perform_regression_analysis(image_profiles, output_folder):
         else:
             f.write(f"    -> No significant quadratic term: Linear model is sufficient\n")
         
-        f.write("\n\n" + "=" * 80 + "\n")
+        f.write("\n\n" + "\n")
         f.write("MODEL 4: Quadratic Regression (Individual Cell Data)\n")
         f.write("area = b0 + b1 * file_number + b2 * file_number²\n")
-        f.write("=" * 80 + "\n")
+        f.write("\n")
         f.write(model4.summary().as_text())
         
         coeffs = model4.params
@@ -308,10 +315,10 @@ def perform_regression_analysis(image_profiles, output_folder):
         f.write(f"  Linear (b1): {coeffs['file_number']:.4f} (p={pvals['file_number']:.4e})\n")
         f.write(f"  Quadratic (b2): {coeffs['file_number_sq']:.4f} (p={pvals['file_number_sq']:.4e})\n")
         
-        f.write("\n\n" + "=" * 80 + "\n")
+        f.write("\n\n" + "\n")
         f.write("MODEL 5: Linear with Interaction (Aggregated Data)\n")
         f.write("area = b0 + b1 * file_number + b2 * n_files + b3 * file_number * n_files\n")
-        f.write("=" * 80 + "\n")
+        f.write("\n")
         f.write(model5.summary().as_text())
         
         coeffs = model5.params

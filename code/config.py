@@ -1,13 +1,19 @@
+# Every path and tuning parameter the project uses, in one place.
+#
+# Scripts import their locations from here rather than building paths from the
+# working directory, so a run behaves the same whether it was started from the
+# project root, from code/, or from anywhere else. Nothing here is read from
+# the environment or from argv.
+
 import os
 from pathlib import Path
 from typing import Dict, Any, Optional
 
-# ============================================================
-# PROJECT PATHS
-# ============================================================
+# Anchored on this file's own location, never on the working directory.
+PROJECT_ROOT = Path(__file__).resolve().parent.parent
 
-# Get the base directory (parent of code folder)
-BASE_DIR = Path(__file__).parent.parent
+# Original name for the same thing, kept so existing imports keep working.
+BASE_DIR = PROJECT_ROOT
 
 # Data folders
 DATA_FOLDER = BASE_DIR / "data"
@@ -31,29 +37,40 @@ TDA_FOLDER = RESULTS_FOLDER / "tda"
 NON_TDA_FOLDER = RESULTS_FOLDER / "non_tda"
 FEATURE_ANALYSIS_FOLDER = RESULTS_FOLDER / "feature_analysis"
 
-# ============================================================
 # MODEL WEIGHTS
-# ============================================================
 
-# YOLO model weights
-ROBUST_CELL_WEIGHTS = MODELS_FOLDER / "runs" / "segment" / "runs" / "robust_segmentation" / "robust_cell_detector" / "weights" / "best.pt"
-EXCLUSION_WEIGHTS = MODELS_FOLDER / "runs" / "segment" / "runs" / "exclusion_model" / "inner_part_detector" / "weights" / "best.pt"
-ROOT_DETECTION_WEIGHTS = MODELS_FOLDER / "runs" / "detect" / "runs" / "root_detection" / "root_detector" / "weights" / "best.pt"
+
+def _best_weights(folder, model_name):
+    # Accepts either naming. Training now writes <model_name>_best.pt so a
+    # loose checkpoint stays identifiable, but weights trained before that
+    # are still plain best.pt and must keep loading without being renamed by
+    # hand -- renaming them would break nothing but this constant, and there
+    # is no reason to make that a manual step.
+    folder = Path(folder)
+    named = folder / f'{model_name}_best.pt'
+    return named if named.exists() else folder / 'best.pt'
+
+
+ROBUST_CELL_WEIGHTS = _best_weights(
+    MODELS_FOLDER / "runs" / "segment" / "runs" / "robust_segmentation" / "robust_cell_detector" / "weights",
+    "robust_cell_detector")
+EXCLUSION_WEIGHTS = _best_weights(
+    MODELS_FOLDER / "runs" / "segment" / "runs" / "exclusion_model" / "inner_part_detector" / "weights",
+    "inner_part_detector")
+ROOT_DETECTION_WEIGHTS = _best_weights(
+    MODELS_FOLDER / "runs" / "detect" / "runs" / "root_detection" / "root_detector" / "weights",
+    "root_detector")
 
 # SAM weights
 SAM_WEIGHTS = MODELS_FOLDER / "mobile_sam.pt"
 
-# ============================================================
 # CONVERSION FACTORS
-# ============================================================
 
 # Default conversion: 50 µm = 77 pixels
 DEFAULT_PIXEL_TO_UM = 50.0 / 77.0
 DEFAULT_PIXEL_TO_UM_SQUARED = DEFAULT_PIXEL_TO_UM * DEFAULT_PIXEL_TO_UM
 
-# ============================================================
 # PROCESSING PARAMETERS
-# ============================================================
 
 # SAM refinement settings
 USE_SAM_REFINEMENT = False
@@ -119,9 +136,7 @@ NEIGHBOR_CONFIG = {
     'density_output_dir': RESULTS_FOLDER / "measurements" / "density_analysis"
 }
 
-# ============================================================
 # ANALYSIS PARAMETERS
-# ============================================================
 
 # Spline fitting parameters
 SPLINE_CONFIG = {
@@ -138,6 +153,7 @@ FEATURE_CONFIG = {
         'peak_position',
         'rise_slope',
         'decay_slope',
+        'minima_position',
         'outer_rise_magnitude'
     ],
     'feature_labels': {
@@ -145,6 +161,7 @@ FEATURE_CONFIG = {
         'peak_position': 'Peak Position',
         'rise_slope': 'Rise Slope',
         'decay_slope': 'Decay Slope',
+        'minima_position': 'Minima Position',
         'outer_rise_magnitude': 'Outer-Rise Magnitude'
     }
 }
@@ -178,9 +195,7 @@ TDA_CONFIG = {
     'skip_wasserstein': True
 }
 
-# ============================================================
 # OUTPUT SETTINGS
-# ============================================================
 
 # File naming
 MASTER_SUMMARY_FILENAME = "master_summary.csv"
@@ -208,9 +223,7 @@ LOGGING_CONFIG = {
     'date_format': '%Y-%m-%d %H:%M:%S'
 }
 
-# ============================================================
 # PIPELINE SETTINGS
-# ============================================================
 
 PIPELINE_CONFIG = {
     'skip_existing': True,
@@ -221,18 +234,14 @@ PIPELINE_CONFIG = {
     'force_rebuild_features': False
 }
 
-# ============================================================
 # SPECIES AND POPULATION INFO
-# ============================================================
 
 METADATA_CONFIG = {
     'species': 'Zea mays',
     'population': 'IBM'
 }
 
-# ============================================================
 # HELPER FUNCTIONS
-# ============================================================
 
 def get_config_dict() -> Dict[str, Any]:
     return {
@@ -317,5 +326,54 @@ def get_output_folder(analysis_type: str) -> Path:
     return folder
 
 
-if __name__ != "__main__":
-    pass 
+def resolve_input(path, description):
+    # An input that must exist. Raises listing what was tried, because the
+    # usual failure is a path that silently resolved against the wrong root
+    # and then surfaced much later as an empty result set.
+    p = Path(path)
+    tried = [p if p.is_absolute() else PROJECT_ROOT / p]
+    if not p.is_absolute() and Path.cwd().resolve() != PROJECT_ROOT:
+        tried.append(Path.cwd() / p)
+    for candidate in tried:
+        if candidate.exists():
+            return candidate.resolve()
+    lines = '\n'.join(f'  {t}' for t in tried)
+    raise FileNotFoundError(f'{description} not found. Tried:\n{lines}')
+
+
+def resolve_output(path):
+    # An output location. A relative path lands under the project root rather
+    # than the working directory, so results do not scatter depending on where
+    # the script was launched from. Parent directories are created.
+    p = Path(path)
+    out = p if p.is_absolute() else PROJECT_ROOT / p
+    out.parent.mkdir(parents=True, exist_ok=True)
+    return out
+
+
+def find_latest_checkpoint(folder, model_name=None):
+    # Newest checkpoint in a folder, by epoch number.
+    #
+    # Understands both the current <model_name>_epoch_<N>.pt naming and the
+    # older bare epoch<N>.pt that ultralytics writes, so weights trained before
+    # the rename still load without being touched by hand. Epochs are compared
+    # as integers: sorting the filenames as strings puts epoch9 above epoch100.
+    import re
+    folder = Path(folder)
+    if not folder.exists():
+        return None
+
+    best = None
+    for p in folder.glob('*.pt'):
+        stem = p.stem
+        if model_name and stem == f'{model_name}_best':
+            return p
+        m = re.search(r'epoch[_]?(\d+)$', stem)
+        if not m:
+            continue
+        if model_name and not stem.startswith(model_name) and not stem.startswith('epoch'):
+            continue
+        epoch = int(m.group(1))
+        if best is None or epoch > best[0]:
+            best = (epoch, p)
+    return best[1] if best else None 

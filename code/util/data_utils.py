@@ -1,3 +1,8 @@
+# Normalisation and binning shared across analyses.
+#
+# Includes combining four quadrants into one root, which is the step that
+# makes the root rather than the image the unit of analysis.
+
 import pandas as pd
 import numpy as np
 from typing import Dict, Any, List, Tuple, Optional

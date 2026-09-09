@@ -1,3 +1,9 @@
+# Measures every segmented cell.
+#
+# Turns each cell mask into area, radius and angle from the stele centre,
+# in microns. Writes one _measurements.csv per quadrant image into
+# results/measurements_all/.
+
 import cv2
 import numpy as np
 import pandas as pd
@@ -18,6 +24,7 @@ from code.measurements.mask_neighbors import get_neighbors_from_masks
 from code.util.file_utils import parse_image_name, resolve_original_image_name
 from code.util.image_utils import load_image_metadata, calculate_area_from_mask, calculate_stele_area, calculate_root_radius
 from collections import defaultdict
+from code.config import DATA_FOLDER, EXCLUSION_WEIGHTS, MASTER_SUMMARY_PATH, MEASUREMENTS_FOLDER, ROBUST_CELL_WEIGHTS
 
 os.environ['CUDA_VISIBLE_DEVICES'] = '-1'
 os.environ['TORCH_DEVICE'] = 'cpu'
@@ -113,7 +120,7 @@ def save_image_summary(image_path, output_dir, stele_area_um2, root_radius_um, q
     return summary_path
 
 
-def create_master_summary(measurements_folder="results/measurements_all", output_path="results/master_summary.csv", 
+def create_master_summary(measurements_folder=MEASUREMENTS_FOLDER, output_path=MASTER_SUMMARY_PATH, 
                           species=None, population=None):
     
     # Use provided values or defaults
@@ -249,8 +256,8 @@ def create_master_summary(measurements_folder="results/measurements_all", output
 
 
 def extract_cell_measurements(
-    weights_path="models/runs/segment/runs/robust_segmentation/robust_cell_detector/weights/best.pt",
-    exclusion_weights="models/runs/segment/runs/exclusion_model/inner_part_detector/weights/best.pt",
+    weights_path=ROBUST_CELL_WEIGHTS,
+    exclusion_weights=EXCLUSION_WEIGHTS,
     image_path="test_image.jpg",
     confidence=0.99,
     exclusion_confidence=0.5,
@@ -540,9 +547,9 @@ def extract_cell_measurements(
 
 
 def batch_extract_measurements(
-    weights_path="models/runs/segment/runs/robust_segmentation/robust_cell_detector/weights/best.pt",
-    exclusion_weights="models/runs/segment/runs/exclusion_model/inner_part_detector/weights/best.pt",
-    image_folder="data/cropped_images",
+    weights_path=ROBUST_CELL_WEIGHTS,
+    exclusion_weights=EXCLUSION_WEIGHTS,
+    image_folder=DATA_FOLDER / 'cropped_images',
     confidence=0.25,
     exclusion_confidence=0.5,
     output_dir="measurements",
@@ -737,8 +744,8 @@ def batch_extract_measurements(
 
 
 def visualize_measurements(
-    weights_path="models/runs/segment/runs/robust_segmentation/robust_cell_detector/weights/best.pt",
-    exclusion_weights="models/runs/segment/runs/exclusion_model/inner_part_detector/weights/best.pt",
+    weights_path=ROBUST_CELL_WEIGHTS,
+    exclusion_weights=EXCLUSION_WEIGHTS,
     image_path="test_image.jpg",
     confidence=0.99,
     exclusion_confidence=0.5,

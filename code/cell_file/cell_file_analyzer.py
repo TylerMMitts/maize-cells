@@ -1,3 +1,10 @@
+# Assigns each cell to a concentric cell file.
+#
+# The derivative method is the one in use: cell area is walked outward along
+# the radius and file boundaries are placed where the slope changes sign.
+# Two other methods are kept for comparison. Writes cell_assignments.csv per
+# image under results/cell_file/cell_file_counting/.
+
 import sys
 from pathlib import Path
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))
@@ -14,20 +21,21 @@ from scipy.signal import find_peaks, savgol_filter
 from sklearn.cluster import KMeans
 import glob
 from tqdm import tqdm
+from code.config import CELL_FILE_COUNTS_FOLDER, CHOSEN_RESULTS_FOLDER, DATA_FOLDER, RESULTS_FOLDER
 
 # Processing mode: 'single' for one image, 'batch' for multiple images
 MODE = 'batch'
 
 # For SINGLE image mode:
-SINGLE_IMAGE_PATH = 'data/chosen_results/BL_example.jpg'
+SINGLE_IMAGE_PATH = DATA_FOLDER / 'chosen_results' / 'BL_example.jpg'
 SINGLE_CSV_PATH = 'measurements/BL_example_measurements.csv'
 
 # For BATCH mode:
-MEASUREMENTS_FOLDER = 'results/measurements'
-IMAGE_FOLDER = 'data/chosen_results'
+MEASUREMENTS_FOLDER = RESULTS_FOLDER / 'measurements'
+IMAGE_FOLDER = CHOSEN_RESULTS_FOLDER
 
 # Output directory for results
-OUTPUT_DIR = 'results/cell_file/cell_file_counting'
+OUTPUT_DIR = CELL_FILE_COUNTS_FOLDER
 
 # Visualization:
 CREATE_VISUALIZATIONS = True
@@ -666,17 +674,7 @@ def batch_analyze_cell_files(
     image_folder=None,
     force_rebuild=False
 ):
-    """
-    Analyze cell files for images.
-    
-    Args:
-        measurements_folder: Folder containing measurement CSVs
-        output_folder: Output folder for cell file assignments
-        method: Method to use ('derivative' or 'other')
-        specific_images: List of image names to process (None = all)
-        image_folder: Folder containing images for visualization
-        force_rebuild: If True, reprocess all images even if they have data
-    """
+    # Analyze cell files for images.
     import glob
     from pathlib import Path
     
@@ -685,8 +683,8 @@ def batch_analyze_cell_files(
         possible_folders = [
             Path(measurements_folder).parent / 'root_results' / 'detections',
             Path(measurements_folder).parent.parent / 'root_results' / 'detections',
-            Path('results/root_results/detections'),
-            Path('../results/root_results/detections'),
+            Path(RESULTS_FOLDER / 'root_results' / 'detections'),
+            Path(RESULTS_FOLDER / 'root_results' / 'detections'),
             Path(measurements_folder)  # Also check measurements_all for _centers.jpg
         ]
         for folder in possible_folders:

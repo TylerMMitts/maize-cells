@@ -1,3 +1,8 @@
+# Cell-file profiles pooled across images and groups.
+#
+# Averages the per-file cell size profiles so a whole population can be
+# plotted as one curve, and compares those curves between groups.
+
 import os
 import re
 import pandas as pd
@@ -1014,7 +1019,6 @@ def create_average_by_file_count_with_best_fit(image_profiles, output_folder):
         for result in non_cubic_groups:
             print(f"  {result['n_files']} files ({result['n_images']} images): {result['reason']}")
     
-    print("="*70)
     
     return cubic_fit_results, non_cubic_groups
 
@@ -1244,7 +1248,7 @@ def print_summary_statistics(image_profiles):
         print(f"Size change from file 0 to {n_files-1}: {avg_areas[-1] - avg_areas[0]:.1f} {Y_LABEL.split()[-1]}")
     
     if all_areas:
-        print(f"\n{'='*70}")
+        print(f"\n")
         print(f"OVERALL STATISTICS (all images):")
         print(f"Mean across all files: {np.mean(all_areas):.1f} ± {np.std(all_areas):.1f} {Y_LABEL.split()[-1]}")
         print(f"Range: {np.min(all_areas):.1f} - {np.max(all_areas):.1f} {Y_LABEL.split()[-1]}")

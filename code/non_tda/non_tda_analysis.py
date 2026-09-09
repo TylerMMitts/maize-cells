@@ -1,3 +1,8 @@
+# The pooled cell-size profile across all images.
+#
+# Loads every measurement file, normalises each root onto a common axis and
+# overlays them, which is the plot the whole project is built around.
+
 import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
@@ -10,6 +15,7 @@ from scipy.stats import linregress
 import json
 import os
 from code.util.file_utils import load_image_summary
+from code.config import MASTER_SUMMARY_PATH, RESULTS_FOLDER
 
 def load_and_filter_cells(csv_path, angle_tolerance=5):
 
@@ -178,7 +184,7 @@ def fit_spline_and_extract_features(x, y, smoothing_factor=0.5):
     }
 
 
-def create_master_summary_with_features(data, measurements_folder, output_path="results/master_summary.csv"):
+def create_master_summary_with_features(data, measurements_folder, output_path=MASTER_SUMMARY_PATH):
     
     # Get unique images
     images = data['filename'].unique()
@@ -363,7 +369,7 @@ def create_master_summary_with_features(data, measurements_folder, output_path="
     return master_df
 
 
-def create_visualizations(data, output_folder="results/non_tda_results"):
+def create_visualizations(data, output_folder=RESULTS_FOLDER / 'non_tda_results'):
 
     output_path = Path(output_folder)
     output_path.mkdir(exist_ok=True)
@@ -711,8 +717,8 @@ def create_visualizations(data, output_folder="results/non_tda_results"):
 
 def main():
     # Configuration
-    measurements_folder = "results/measurements"
-    output_folder = "results/non_tda_results"
+    measurements_folder = RESULTS_FOLDER / 'measurements'
+    output_folder = RESULTS_FOLDER / 'non_tda_results'
     angle_tolerance = 5  # degrees around each sampled angle
     
     # Process all measurements
@@ -732,7 +738,7 @@ def main():
     print(f"Saved processed data to: {data_file}")
     
     # Create master summary with curve features
-    master_summary_path = "results/master_summary.csv"
+    master_summary_path = MASTER_SUMMARY_PATH
     create_master_summary_with_features(
         combined_data, 
         measurements_folder, 

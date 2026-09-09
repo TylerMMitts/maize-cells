@@ -1,3 +1,10 @@
+# Is the pattern just a side effect of root size?
+#
+# Regresses each shape feature against two independent size proxies, number
+# of cell files and stele diameter. A feature is only called size-driven if
+# it clears a marginal R-squared of 0.1, because with this many roots a
+# negligible effect is still statistically significant.
+
 import os
 import numpy as np
 import pandas as pd
@@ -54,12 +61,18 @@ def fit_one_feature(df, feature):
 
     formula = f"{feature} ~ n_files + stele_diameter_um"
 
+    model_type = 'MixedLM'
     try:
         model = smf.mixedlm(formula, data=sub, groups=sub[GROUP_COLUMN])
         result = model.fit(reml=False)
         r2 = marginal_r_squared(result, sub, {'y': feature})
     except Exception as e:
-        return None, f"Model failed to converge: {e}"
+        try:
+            model_type = 'OLS_fallback'
+            result = smf.ols(formula, data=sub).fit()
+            r2 = result.rsquared
+        except Exception as e2:
+            return None, f"Mixed model and OLS fallback both failed: {e2}"
 
     size_driven = r2 >= SIZE_DRIVEN_R2_THRESHOLD
 
@@ -73,6 +86,7 @@ def fit_one_feature(df, feature):
             'coefficient': result.params[covariate],
             'p_value': result.pvalues[covariate],
             'size_driven': size_driven,
+            'model_type': model_type,
         })
 
     summary_row = {
@@ -82,6 +96,7 @@ def fit_one_feature(df, feature):
         'stele_diameter_coef': result.params.get('stele_diameter_um', np.nan),
         'size_driven': size_driven,
         'r2': r2,
+        'model_type': model_type,
     }
 
     return {'coef_rows': rows, 'summary_row': summary_row}, None
@@ -160,7 +175,8 @@ def main():
         all_summary_rows.append(result['summary_row'])
         print(f"  n={result['summary_row']['n_observations']}, "
               f"R²={result['summary_row']['r2']:.4f}, "
-              f"size_driven={result['summary_row']['size_driven']}")
+              f"size_driven={result['summary_row']['size_driven']}, "
+              f"model={result['summary_row']['model_type']}")
 
     coefficients_df = pd.DataFrame(all_coef_rows)
     summary_df = pd.DataFrame(all_summary_rows)
@@ -173,7 +189,6 @@ def main():
 
     create_coefficient_plot(coefficients_df, OUTPUT_FOLDER)
     create_coefficient_heatmap(coefficients_df, OUTPUT_FOLDER)
-
 
 
 if __name__ == "__main__":

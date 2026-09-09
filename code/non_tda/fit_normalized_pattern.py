@@ -1,10 +1,16 @@
+# Fits one curve to the normalised pattern.
+#
+# Takes an already-processed CSV and fits the pooled shape, so the fit can be
+# redone without re-reading every measurement file.
+
 import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
 from scipy.optimize import curve_fit
 from pathlib import Path
+from code.config import RESULTS_FOLDER
 
-def fit_normalized_pattern_from_csv(csv_path, output_folder="results/non_tda_results"):
+def fit_normalized_pattern_from_csv(csv_path, output_folder=RESULTS_FOLDER / 'non_tda_results'):
     
     data = pd.read_csv(csv_path)
     output_path = Path(output_folder)
@@ -120,12 +126,10 @@ def fit_normalized_pattern_from_csv(csv_path, output_folder="results/non_tda_res
     print("NORMALIZED PATTERN FIT RESULTS")
     for name, res in sorted(results.items(), key=lambda x: x[1]['r2'], reverse=True):
         print(f"  {name}: R² = {res['r2']:.4f}, params = {res['params']}")
-    print("-" * 60)
     print(f"BEST: {best_name} (R² = {best['r2']:.4f})")
     param_names = ['a', 'b', 'c', 'd'][:len(best['params'])]
     for pn, pv in zip(param_names, best['params']):
         print(f"  {pn} = {pv:.6f}")
-    print("=" * 60)
     
     # Plot
     fig, ax = plt.subplots(figsize=(12, 8))
@@ -151,5 +155,5 @@ def fit_normalized_pattern_from_csv(csv_path, output_folder="results/non_tda_res
     return best
 
 if __name__ == "__main__":
-    csv_path = "results/non_tda/non_tda_results_huge/processed_data.csv"
-    fit_normalized_pattern_from_csv(csv_path, "results/non_tda/non_tda_results_huge")
+    csv_path = RESULTS_FOLDER / 'non_tda' / 'non_tda_results_huge' / 'processed_data.csv'
+    fit_normalized_pattern_from_csv(csv_path, RESULTS_FOLDER / 'non_tda' / 'non_tda_results_huge')

@@ -1,3 +1,9 @@
+# Analyses the neighbour graph across the whole dataset.
+#
+# Uses the neighbour relationships to trace paths outward through the cortex
+# and produce the averaged radial patterns. This is the largest analysis
+# module and holds most of the pattern plots.
+
 import os
 import pandas as pd
 import numpy as np
@@ -21,16 +27,7 @@ import sys
 sys.path.insert(0, str(CODE_DIR))
 
 # Import utility functions
-from util import (
-    load_measurement_csv,
-    load_image_summary,
-    find_all_measurement_files,
-    load_cell_assignments,
-    determine_angle_range,
-    get_sample_angles,
-    normalize_angle,
-    get_cells_at_angle
-)
+from code.util import load_measurement_csv, load_image_summary, find_all_measurement_files, load_cell_assignments, determine_angle_range, get_sample_angles, normalize_angle, get_cells_at_angle
 
 # Use absolute paths based on project root
 MEASUREMENTS_FOLDER = str(PROJECT_ROOT / "results" / "measurements_all")

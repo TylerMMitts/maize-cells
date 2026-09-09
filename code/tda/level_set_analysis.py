@@ -1,3 +1,8 @@
+# Persistence of the density field as a threshold sweeps.
+#
+# Runs on the polar density grids rather than the cells themselves, which is
+# what makes it sensitive to air pockets.
+
 import numpy as np
 import pandas as pd
 import os

@@ -1,3 +1,9 @@
+# Rebuilds master_summary.csv from the measurement files.
+#
+# Separate from the pipeline so the summary can be regenerated without
+# re-segmenting anything. Imported lazily by file_utils to avoid a circular
+# import, since this module imports parse_image_name from there.
+
 import os
 import pandas as pd
 import json

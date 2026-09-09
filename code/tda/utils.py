@@ -1,3 +1,8 @@
+# Graph helpers shared by the topological analyses.
+#
+# Cycle finding and subgraph reduction, used when turning a persistence
+# feature back into the actual cells that produced it.
+
 import numpy as np
 import pandas as pd
 import networkx as nx

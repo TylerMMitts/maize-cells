@@ -1,3 +1,8 @@
+# Shared spline fitting and summary statistics.
+#
+# Holds the spline fit used in more than one place, so the feature
+# definitions cannot drift between callers.
+
 import numpy as np
 import pandas as pd
 from scipy.interpolate import UnivariateSpline

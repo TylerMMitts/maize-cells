@@ -1,10 +1,16 @@
+# Visual check of the exclusion model on one image.
+#
+# Shows which region the model considers valid cortex, which is the usual
+# first thing to inspect when cell counts come out wrong.
+
 import cv2
 import os
 import numpy as np
 from ultralytics import YOLO
+from code.config import DATA_FOLDER, EXCLUSION_WEIGHTS
 
-EXCLUSION_WEIGHTS = "models/runs/segment/runs/exclusion_model/inner_part_detector/weights/best.pt"
-IMAGE_PATH = "data/cropped_images/BL7.jpg"
+EXCLUSION_WEIGHTS = EXCLUSION_WEIGHTS
+IMAGE_PATH = DATA_FOLDER / 'cropped_images' / 'BL7.jpg'
 CONFIDENCE = 0.25
 OUTPUT_DIR = "test_inner_part"
 

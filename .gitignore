@@ -1,6 +1,27 @@
-# ============================================================
-# IMAGE FILES (all formats)
-# ============================================================
+# Model weights. These are large (85 MB per best.pt, 368 MB per epoch
+# checkpoint) and are distributed alongside the repo rather than inside it;
+# see the README for where they go.
+*.pt
+*.pth
+models/runs/
+models/**/weights/
+models/**/*.cache
+
+# Auto-downloaded pretrained backbones, which ultralytics fetches on demand
+yolo*.pt
+mobile_sam.pt
+
+# Generated output. Everything under results/ is reproducible by re-running
+# the pipeline, and some of it is very large.
+results/
+
+# Source imagery and datasets
+data/
+yolo_images/
+tomato_quarters/
+poster_images/
+
+# Images and figures
 *.png
 *.jpg
 *.jpeg
@@ -12,31 +33,21 @@
 *.eps
 *.pdf
 
-# ============================================================
-# CSV FILES
-# ============================================================
+# Data tables and geometry exports
 *.csv
-
-# ============================================================
-# JSON FILES
-# ============================================================
 *.json
+*.stl
+*.xlsx
 
-# ============================================================
-# OUTPUT FOLDERS (your specific paths)
-# ============================================================
-results/
-results/combined_cubic_fit/
-results/measurements_all/
-results/cell_file/cell_file_counting/
+# Logs and notes
+*.log
+*.txt
 
-# Individual plot folders
-results/combined_cubic_fit/individual_plots_radius/
-results/combined_cubic_fit/individual_plots_file/
+# Must come after the *.txt rule above: in gitignore the last matching rule
+# wins, so a negation placed earlier has no effect at all.
+!requirements.txt
 
-# ============================================================
-# PYTHON CACHE & BUILD FILES
-# ============================================================
+# Python
 __pycache__/
 *.pyc
 *.pyo
@@ -49,15 +60,11 @@ dist/
 build/
 *.whl
 
-# ============================================================
-# JUPYTER NOTEBOOKS (optional)
-# ============================================================
+# Notebooks
 .ipynb_checkpoints/
 *.ipynb
 
-# ============================================================
-# ENVIRONMENT & CONFIGURATION
-# ============================================================
+# Environments and editors
 .env
 .venv
 venv/
@@ -69,22 +76,7 @@ env/
 *.swo
 *~
 
-# ============================================================
-# OS SPECIFIC FILES
-# ============================================================
-.DS_Store
-Thumbs.db
-desktop.ini
-
-# ============================================================
-# LOG FILES
-# ============================================================
-*.log
-*.txt
-
-# ============================================================
-# DATA FILES (optional - if you have large data)
-# ============================================================
+# Large binary data formats
 *.h5
 *.hdf5
 *.npy
@@ -93,9 +85,13 @@ desktop.ini
 *.pkl
 *.mat
 
-# ============================================================
-# TEMPORARY FILES
-# ============================================================
+# OS noise
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Scratch
 tmp/
 temp/
 *.tmp
+.refactor_audit/

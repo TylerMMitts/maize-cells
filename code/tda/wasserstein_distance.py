@@ -1,3 +1,8 @@
+# Wasserstein distance between two persistence diagrams.
+#
+# Separated out because it is the expensive step and is skipped by default
+# in the TDA config.
+
 import numpy as np
 import matplotlib.pyplot as plt
 import persim

@@ -1,3 +1,9 @@
+# Scratch entry point for running individual pipeline stages by hand.
+#
+# Kept separate from run_pipeline so a single stage can be re-run against an
+# existing results/ folder without going through the whole sequence. Most of
+# the body is commented-out calls, switched on as needed.
+
 import sys
 import os
 from pathlib import Path
@@ -11,6 +17,7 @@ from code.util.visualize_cell_centers import visualize_cell_centers
 # from code.tda.tda_analysis import batch_tda_analysis, analyze_single_image
 # from code.tda.mds import mds_from_wasserstein_csv
 from code.util.lightweight_sam_refiner import LightweightSAMRefiner
+from code.config import DATA_FOLDER, EXCLUSION_WEIGHTS, MEASUREMENTS_FOLDER, MODELS_FOLDER, RESULTS_FOLDER, ROBUST_CELL_WEIGHTS
 
 USE_SAM_REFINEMENT = False
 SAM_MODEL_TYPE = 'mobilesam'
@@ -32,28 +39,28 @@ if USE_SAM_REFINEMENT:
 else:
     sam_refiner = None
 
-EXCLUSION_WEIGHTS = "models/runs/segment/runs/exclusion_model/inner_part_detector/weights/best.pt"
+EXCLUSION_WEIGHTS = EXCLUSION_WEIGHTS
 
 ROBUST_TRAIN_CONFIG = {
-    'dataset_yaml': 'models/cell_dataset/data.yaml',
+    'dataset_yaml': MODELS_FOLDER / 'cell_dataset' / 'data.yaml',
     'model_size': 'yolov8l-seg.pt',
     'epochs': 100,
     'max_det': 3000,
     'batch_size': 2,
     'image_size': 640,
-    'project': 'models/runs/segment/runs',
+    'project': MODELS_FOLDER / 'runs' / 'segment' / 'runs',
     'run_name': 'robust_segmentation',
     'device': 'cpu'
 }
 
-ROBUST_WEIGHTS = "models/runs/segment/runs/robust_segmentation/robust_cell_detector/weights/best.pt"
+ROBUST_WEIGHTS = ROBUST_CELL_WEIGHTS
 
 ROBUST_TEST_CONFIG = {
     'cell_weights': ROBUST_WEIGHTS,
     'exclusion_weights': EXCLUSION_WEIGHTS,
-    'image_folder': 'data/poster_results',
+    'image_folder': DATA_FOLDER / 'poster_results',
     'confidence': 0.98,
-    'output_dir': 'results/specific_tests_sam' if USE_SAM_REFINEMENT else 'results/chosen_results_robust',
+    'output_dir': RESULTS_FOLDER / 'specific_tests_sam' if USE_SAM_REFINEMENT else RESULTS_FOLDER / 'chosen_results_robust',
     'refine': True,
     'color_tolerance': 15,
     'use_darkest_seed': False,
@@ -80,10 +87,10 @@ ROBUST_TEST_CONFIG = {
 MEASUREMENT_CONFIG = {
     'weights_path': ROBUST_WEIGHTS,
     'exclusion_weights': EXCLUSION_WEIGHTS,
-    'image_folder': 'data/chosen_results_some',
+    'image_folder': DATA_FOLDER / 'chosen_results_some',
     'confidence': 0.98,
     'exclusion_confidence': 0.25,
-    'output_dir': 'results/measurements',
+    'output_dir': RESULTS_FOLDER / 'measurements',
     'filter_by_inner_part': True,
     'inner_open_kernel': 99,
     'inner_close_kernel': 155,
@@ -99,14 +106,14 @@ MEASUREMENT_CONFIG = {
     'morph_open_kernel': 21,
     'morph_post_process': True,
     'sam_refiner': sam_refiner,
-    'density_output_dir': "results/measurements/density_analysis",
+    'density_output_dir': RESULTS_FOLDER / 'measurements' / 'density_analysis',
     'expansion_pixels': 20,
     'max_neighbors': 7
 }
 
 TDA_CONFIG = {
-    'measurements_dir': 'results/measurements_all',
-    'output_dir': 'results/tda/VR',
+    'measurements_dir': MEASUREMENTS_FOLDER,
+    'output_dir': RESULTS_FOLDER / 'tda' / 'VR',
     'max_dimension': 1,
     'max_edge_length': None,
     'show_plots': False,

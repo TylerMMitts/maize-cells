@@ -1,3 +1,8 @@
+# Local cell density and the air pockets between cells.
+#
+# Computes density on a polar grid and finds the gaps that are too large to
+# be a cell, which is what the air-space measurements are built from.
+
 import numpy as np
 import pandas as pd
 import os

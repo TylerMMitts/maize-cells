@@ -1,3 +1,8 @@
+# Turns a persistence diagram into a fixed-length vector.
+#
+# Needed because diagrams have different numbers of points, so they cannot
+# be fed to PCA or a regression directly.
+
 import persim
 import numpy as np
 import matplotlib.pyplot as plt

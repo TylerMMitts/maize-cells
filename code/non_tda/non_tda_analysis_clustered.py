@@ -1,3 +1,8 @@
+# The same profiles, split by cluster rather than pooled.
+#
+# Clusters roots by shape first, then plots each cluster separately, so a
+# bimodal population is not averaged into a single misleading curve.
+
 import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
@@ -7,6 +12,7 @@ import glob
 from scipy import stats
 from sklearn import manifold, cluster
 from sklearn.preprocessing import StandardScaler
+from code.config import RESULTS_FOLDER
 
 def perform_mds_clustering(wasserstein_csv_path, n_clusters=None, method='dbscan'):
     # Load Wasserstein distances
@@ -232,7 +238,7 @@ def process_measurements_with_filter(measurements_folder, normal_images, angle_t
     
     return combined_df
 
-def create_visualizations(data, output_folder="results/non_tda_results_clustered", cluster_info=""):
+def create_visualizations(data, output_folder=RESULTS_FOLDER / 'non_tda_results_clustered', cluster_info=""):
 
     output_path = Path(output_folder)
     output_path.mkdir(exist_ok=True)
@@ -481,9 +487,9 @@ def create_visualizations(data, output_folder="results/non_tda_results_clustered
 def main():
     
     # Configuration
-    wasserstein_csv = "results/chosen_tda_results/wasserstein_distances_H1.csv"
+    wasserstein_csv = RESULTS_FOLDER / 'chosen_tda_results' / 'wasserstein_distances_H1.csv'
     measurements_folder = "measurements"
-    output_folder="results/non_tda_results_clustered"
+    output_folder=RESULTS_FOLDER / 'non_tda_results_clustered'
     angle_tolerance = 5
     
     # Clustering parameters

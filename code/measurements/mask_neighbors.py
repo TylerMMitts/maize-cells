@@ -1,3 +1,9 @@
+# Works out which cells touch which, from the masks.
+#
+# Dilates each mask until it meets its neighbours rather than using centroid
+# distance, so two cells only count as neighbours if their borders actually
+# meet. Capped at a maximum neighbour count to keep the graph sane.
+
 import cv2
 import numpy as np
 from collections import defaultdict
@@ -314,20 +320,7 @@ def batch_calculate_neighbors(
     specific_images=None,
     force_recalc=False  # ADD THIS PARAMETER
 ):
-    """
-    Calculate neighbors for all measurement files in a folder.
-    
-    Args:
-        measurements_folder: Path to folder containing measurement CSV files
-        expansion_pixels: Number of pixels to expand cell masks when checking for neighbors
-        max_neighbors: Maximum number of neighbors per cell (None for unlimited)
-        verbose: Whether to print progress information
-        specific_images: List of specific image names to process (if None, process all)
-        force_recalc: If True, recalculate neighbors even if they already exist
-    
-    Returns:
-        Number of files successfully processed
-    """
+    # Calculate neighbors for all measurement files in a folder.
     import glob
     import pandas as pd
     from pathlib import Path
@@ -499,7 +492,7 @@ def batch_calculate_neighbors(
 
 
 def create_masks_from_centers(cell_centers, image_path):
-    """Create binary masks from cell center coordinates."""
+    # Create binary masks from cell center coordinates.
     import cv2
     import numpy as np
     
@@ -523,7 +516,7 @@ def create_masks_from_centers(cell_centers, image_path):
 
 
 def create_estimated_masks(cell_centers):
-    """Create estimated masks when no real masks are available."""
+    # Create estimated masks when no real masks are available.
     import numpy as np
     
     # Use the same approach but without image dimensions

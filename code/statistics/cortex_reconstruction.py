@@ -1,3 +1,8 @@
+# Rebuilds a cortex from fitted features and checks it back.
+#
+# Compares the reconstructed profile against the measured one, which is how
+# the reconstruction in the interactive model was validated.
+
 import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt

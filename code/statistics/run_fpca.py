@@ -1,3 +1,8 @@
+# Functional PCA over the fitted profiles.
+#
+# Lets the data choose its own shape descriptors instead of imposing the six
+# features, as a check that the imposed ones are not inventing structure.
+
 import os
 import pandas as pd
 import numpy as np
@@ -10,11 +15,12 @@ import glob
 import re
 import warnings
 from code.util.file_utils import parse_image_name, load_measurement_csv
+from code.config import MASTER_SUMMARY_PATH, MEASUREMENTS_FOLDER, RESULTS_FOLDER
 warnings.filterwarnings('ignore')
 
-MASTER_SUMMARY_PATH = "results/master_summary.csv"
-MEASUREMENTS_FOLDER = "results/measurements_all"
-OUTPUT_FOLDER = "results/fpca_results"
+MASTER_SUMMARY_PATH = MASTER_SUMMARY_PATH
+MEASUREMENTS_FOLDER = MEASUREMENTS_FOLDER
+OUTPUT_FOLDER = RESULTS_FOLDER / 'fpca_results'
 SPLINE_SMOOTHING = 0.1
 N_POINTS = 200
 MIN_CELLS_FOR_SPLINE = 5

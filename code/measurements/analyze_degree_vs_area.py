@@ -1,3 +1,8 @@
+# Does a cell with more neighbours tend to be larger?
+#
+# Builds the neighbour graph from the segmentation masks and plots node
+# degree against cell area, per image and pooled.
+
 import pandas as pd
 import numpy as np
 import os

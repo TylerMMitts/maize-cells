@@ -1,3 +1,9 @@
+# Does the pattern change with overall root size?
+#
+# Bins roots by radius and overlays the normalised profiles, to separate a
+# genuine shape difference from the trivial effect of a bigger root having
+# more room.
+
 import os
 import pandas as pd
 import numpy as np
@@ -19,13 +25,7 @@ PROJECT_ROOT = CODE_DIR.parent  # project root
 sys.path.insert(0, str(CODE_DIR))
 
 # Import utility functions
-from util import (
-    load_measurement_csv,
-    load_image_summary,
-    find_all_measurement_files,
-    normalize_radius_and_area,
-    determine_angle_range
-)
+from code.util import load_measurement_csv, load_image_summary, find_all_measurement_files, normalize_radius_and_area, determine_angle_range
 
 # Use absolute paths
 MEASUREMENTS_FOLDER = str(PROJECT_ROOT / "results" / "measurements_all")

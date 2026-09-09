@@ -1,3 +1,8 @@
+# Persistence diagrams for each image, and the statistics over them.
+#
+# The main entry to the topological side: builds the diagrams, summarises
+# them and runs the comparisons.
+
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
@@ -10,6 +15,7 @@ from code.tda.persistence_image import persistence_image
 from scipy import ndimage
 from sklearn.preprocessing import StandardScaler
 from sklearn import decomposition
+from code.config import RESULTS_FOLDER, TDA_FOLDER
 
 def compute_persistence_diagram(coordinates, max_dimension=1, max_edge_length=None):
 
@@ -42,7 +48,7 @@ def plot_persistence_diagram(result, output_path, title="Persistence Diagram", s
 
 def analyze_single_image(
     csv_path,
-    output_dir="results/tda_results",
+    output_dir=RESULTS_FOLDER / 'tda_results',
     max_dimension=1,
     max_edge_length=None,
     show_plots=False
@@ -155,8 +161,8 @@ def resize_h1_centered(image, target_h, target_w):
     return padded
 
 def batch_tda_analysis(
-    measurements_dir="results/measurements",
-    output_dir="results/tda",
+    measurements_dir=RESULTS_FOLDER / 'measurements',
+    output_dir=TDA_FOLDER,
     max_dimension=1,
     max_edge_length=None,
     show_plots=False,

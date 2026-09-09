@@ -1,3 +1,9 @@
+# Compares the two bases the shape features can be computed in.
+#
+# The same six features can be fitted against radius or against cell file
+# index. This quantifies how much they disagree, which matters because the
+# file basis is fitted through far fewer points and comes out noisier.
+
 import os
 import pandas as pd
 import numpy as np
@@ -7,10 +13,11 @@ from pathlib import Path
 from scipy import stats
 from scipy.stats import pearsonr, spearmanr, f_oneway, ttest_ind
 import warnings
+from code.config import FEATURE_TABLE_PATH, RESULTS_FOLDER
 warnings.filterwarnings('ignore')
 
-FEATURE_TABLE_PATH = "results/feature_table.csv"
-OUTPUT_FOLDER = "results/feature_variations"
+FEATURE_TABLE_PATH = FEATURE_TABLE_PATH
+OUTPUT_FOLDER = RESULTS_FOLDER / 'feature_variations'
 
 # Features to analyze (both radius and file-based)
 FEATURES = [
@@ -238,7 +245,6 @@ def compare_approaches(radius_df, file_df, features):
         })
     
     return pd.DataFrame(comparison_data)
-
 
 
 # VISUALIZATIONS

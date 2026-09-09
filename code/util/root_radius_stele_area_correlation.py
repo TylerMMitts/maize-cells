@@ -1,3 +1,8 @@
+# How strongly does stele area track root radius?
+#
+# Establishes that one can stand in for the other, which is what justifies
+# predicting stele area rather than measuring it.
+
 import pandas as pd
 import numpy as np
 from scipy import stats
@@ -6,10 +11,11 @@ import matplotlib.pyplot as plt
 import seaborn as sns
 from pathlib import Path
 import warnings
+from code.config import MASTER_SUMMARY_PATH, RESULTS_FOLDER
 warnings.filterwarnings('ignore')
 
 # Define file path
-file_path = Path('results/master_summary.csv')
+file_path = Path(MASTER_SUMMARY_PATH)
 
 # Load the data
 df = pd.read_csv(file_path)
@@ -126,7 +132,7 @@ ax4.grid(True, alpha=0.3)
 plt.tight_layout()
 
 # Save the figure
-output_dir = Path('results/radius_stele_correlation_analysis')
+output_dir = Path(RESULTS_FOLDER / 'radius_stele_correlation_analysis')
 output_dir.mkdir(exist_ok=True)
 fig_path = output_dir / 'root_radius_vs_stele_correlation.png'
 plt.savefig(fig_path, dpi=300, bbox_inches='tight')

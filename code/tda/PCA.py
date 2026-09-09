@@ -1,3 +1,8 @@
+# PCA over the persistence-image vectors.
+#
+# A linear alternative to MDS on the same data, kept so the two can be
+# compared.
+
 import numpy as np
 import matplotlib.pyplot as plt
 import os

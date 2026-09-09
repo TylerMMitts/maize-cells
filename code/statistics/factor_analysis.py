@@ -1,3 +1,8 @@
+# Which experimental factors move which shape features?
+#
+# ANOVA and Tukey HSD over treatment, root type and population, with the
+# plots that go with them.
+
 import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
@@ -6,6 +11,7 @@ from pathlib import Path
 from scipy import stats
 from scipy.stats import f_oneway, kruskal
 import warnings
+from code.config import CELL_FILE_COUNTS_FOLDER, MASTER_SUMMARY_PATH, RESULTS_FOLDER
 warnings.filterwarnings('ignore')
 
 # Try to import statsmodels
@@ -20,7 +26,7 @@ except ImportError:
     print("statsmodels not available. Some analyses will be limited.")
 
 
-def load_data(master_path="results/master_summary.csv", cell_file_dir="results/cell_file/cell_file_counting"):
+def load_data(master_path=MASTER_SUMMARY_PATH, cell_file_dir=CELL_FILE_COUNTS_FOLDER):
 
     # Load master summary
     df_master = pd.read_csv(master_path)
@@ -411,9 +417,9 @@ def create_factor_plots(anova_results, data, output_dir, factor):
 
 
 def run_factor_analysis_full(
-    master_path="../results/master_summary.csv",
-    cell_file_dir="../results/cell_file/cell_file_counting",
-    output_dir="../results/factor_analysis",
+    master_path=MASTER_SUMMARY_PATH,
+    cell_file_dir=CELL_FILE_COUNTS_FOLDER,
+    output_dir=RESULTS_FOLDER / 'factor_analysis',
     factors=['treatment', 'root_type', 'population']
 ):
 
@@ -534,9 +540,9 @@ def run_factor_analysis_full(
     }
 
 def main(
-    master_path="../results/master_summary.csv",
-    cell_file_dir="../results/cell_file/cell_file_counting",
-    output_dir="../results/factor_analysis",
+    master_path=MASTER_SUMMARY_PATH,
+    cell_file_dir=CELL_FILE_COUNTS_FOLDER,
+    output_dir=RESULTS_FOLDER / 'factor_analysis',
     factors=['treatment', 'root_type', 'population']
 ):
     

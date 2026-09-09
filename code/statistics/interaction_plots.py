@@ -1,13 +1,19 @@
+# Do those factors interact, or act independently?
+#
+# Faceted interaction plots for every factor pair that has enough data,
+# chosen automatically rather than hardcoded.
+
 import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
 import seaborn as sns
 from pathlib import Path
 import warnings
+from code.config import CELL_FILE_COUNTS_FOLDER, MASTER_SUMMARY_PATH, RESULTS_FOLDER
 warnings.filterwarnings('ignore')
 
 
-def load_data(master_path="results/master_summary.csv", cell_file_dir="results/cell_file/cell_file_counting"):
+def load_data(master_path=MASTER_SUMMARY_PATH, cell_file_dir=CELL_FILE_COUNTS_FOLDER):
 
     # Load master summary
     df_master = pd.read_csv(master_path)
@@ -101,7 +107,7 @@ def get_automatic_columns(df):
 
 def create_faceted_interaction_plots(
     df,
-    output_dir="results/interaction_plots",
+    output_dir=RESULTS_FOLDER / 'interaction_plots',
     targets=None,
     x_var='treatment',
     hue_var='root_type',
@@ -368,7 +374,7 @@ def create_summary_grid(df, output_path, targets, x_var, hue_var, facet_var, fac
     print(f"Saved: faceted_interaction_summary.png")
 
 
-def create_simple_interaction_plots(df, output_dir="results/interaction_plots"):
+def create_simple_interaction_plots(df, output_dir=RESULTS_FOLDER / 'interaction_plots'):
 
     output_path = Path(output_dir)
     output_path.mkdir(parents=True, exist_ok=True)
@@ -435,9 +441,9 @@ def create_simple_interaction_plots(df, output_dir="results/interaction_plots"):
 
 
 def main(
-    master_path="../results/master_summary.csv",
-    cell_file_dir="../results/cell_file/cell_file_counting",
-    output_dir="../results/interaction_plots",
+    master_path=MASTER_SUMMARY_PATH,
+    cell_file_dir=CELL_FILE_COUNTS_FOLDER,
+    output_dir=RESULTS_FOLDER / 'interaction_plots',
     x_var=None,
     hue_var=None,
     facet_var=None
